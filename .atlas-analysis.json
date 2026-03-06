@@ -1,0 +1,139 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "TypeScript",
+  "projectDescription": "A superset of JavaScript that compiles to clean JavaScript output with optional static typing.",
+  "theme": "aspen",
+  "primaryColor": "#040404",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "CLI Commands",
+            "pages": [
+              "cli/tsc",
+              "cli/tsserver",
+              "cli/compiler-options"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "config/tsconfig-json",
+              "config/compiler-options-reference",
+              "config/project-references"
+            ]
+          },
+          {
+            "group": "Compiler",
+            "pages": [
+              "compiler/overview",
+              "compiler/type-checking",
+              "compiler/module-resolution",
+              "compiler/emit"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/performance",
+              "advanced/decorators",
+              "advanced/mixins"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Compiler API",
+            "pages": [
+              "api/compiler-api-overview",
+              "api/program",
+              "api/type-checker",
+              "api/scanner",
+              "api/parser"
+            ]
+          },
+          {
+            "group": "Language Service API",
+            "pages": [
+              "api/language-service-overview",
+              "api/language-service",
+              "api/completions",
+              "api/diagnostics",
+              "api/navigation"
+            ]
+          },
+          {
+            "group": "Types and Interfaces",
+            "pages": [
+              "api/types/node-types",
+              "api/types/syntax-kind",
+              "api/types/type-flags",
+              "api/types/symbol-flags"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Contributing",
+        "groups": [
+          {
+            "group": "Development",
+            "pages": [
+              "contributing/getting-started",
+              "contributing/building",
+              "contributing/testing",
+              "contributing/debugging"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "contributing/architecture-overview",
+              "contributing/compiler-internals",
+              "contributing/language-service-internals"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Static type checking for JavaScript",
+    "Modern JavaScript features with backward compatibility",
+    "Rich IDE support via language server",
+    "Powerful compiler API for tooling",
+    "Incremental compilation and project references",
+    "Advanced type system with generics and inference"
+  ],
+  "publicApiSurface": [
+    "tsc (TypeScript compiler CLI)",
+    "tsserver (Language server)",
+    "ts.createProgram()",
+    "ts.createCompilerHost()",
+    "ts.createLanguageService()",
+    "ts.transpileModule()",
+    "ts.parseConfigFileTextToJson()",
+    "ts.sys (System interface)",
+    "ts.ScriptTarget",
+    "ts.ModuleKind",
+    "ts.SyntaxKind",
+    "ts.TypeChecker",
+    "ts.SourceFile",
+    "ts.Node"
+  ]
+}
