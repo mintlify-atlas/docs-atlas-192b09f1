@@ -343,6 +343,65 @@ Use the TypeScript compiler to create a new `tsconfig.json` file:
 tsc --init
 ```
 
+## Programmatic API
+
+### ts.parseConfigFileTextToJson()
+
+Parse a tsconfig.json file content into a configuration object.
+
+```typescript
+function parseConfigFileTextToJson(
+  fileName: string,
+  jsonText: string
+): { config?: any; error?: Diagnostic }
+```
+
+<ParamField path="fileName" type="string" required>
+  The name of the config file (used for error reporting)
+</ParamField>
+
+<ParamField path="jsonText" type="string" required>
+  The JSON content of the config file as a string
+</ParamField>
+
+**Returns:** An object with either:
+- `config`: The parsed configuration object
+- `error`: A diagnostic if parsing failed
+
+### Example
+
+```typescript
+import * as ts from 'typescript';
+import * as fs from 'fs';
+
+// Read tsconfig.json
+const configPath = './tsconfig.json';
+const configText = fs.readFileSync(configPath, 'utf8');
+
+// Parse the config
+const result = ts.parseConfigFileTextToJson(configPath, configText);
+
+if (result.error) {
+  console.error('Error parsing config:', result.error.messageText);
+} else {
+  console.log('Parsed config:', result.config);
+  
+  // Use with parseJsonConfigFileContent to get compiler options
+  const configParseResult = ts.parseJsonConfigFileContent(
+    result.config,
+    ts.sys,
+    './src'
+  );
+  
+  console.log('Compiler options:', configParseResult.options);
+  console.log('File names:', configParseResult.fileNames);
+}
+```
+
+<Tip>
+Use `ts.parseJsonConfigFileContent()` after `parseConfigFileTextToJson()` to resolve extends, include/exclude patterns, and convert to full compiler options.
+</Tip>
+
 This creates a `tsconfig.json` file with default compiler options and helpful comments.
 
 <Tip>

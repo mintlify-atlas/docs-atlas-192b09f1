@@ -430,6 +430,134 @@ for (const sourceFile of program.getSourceFiles()) {
 }
 ```
 
+## Creating a Compiler Host
+
+### ts.createCompilerHost()
+
+Creates a default CompilerHost implementation that uses the file system.
+
+```typescript
+function createCompilerHost(
+  options: CompilerOptions,
+  setParentNodes?: boolean
+): CompilerHost
+```
+
+<ParamField path="options" type="CompilerOptions" required>
+  Compiler options to configure the host
+</ParamField>
+
+<ParamField path="setParentNodes" type="boolean">
+  Whether to set parent nodes in the AST (default: false)
+</ParamField>
+
+**Returns:** A `CompilerHost` instance with default file system operations.
+
+### Example
+
+```typescript
+import * as ts from 'typescript';
+
+const options: ts.CompilerOptions = {
+  target: ts.ScriptTarget.ES2020,
+  module: ts.ModuleKind.CommonJS,
+  strict: true
+};
+
+// Create a compiler host
+const host = ts.createCompilerHost(options);
+
+// Optionally customize host methods
+const originalGetSourceFile = host.getSourceFile;
+host.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) => {
+  console.log(`Reading file: ${fileName}`);
+  return originalGetSourceFile(fileName, languageVersion, onError, shouldCreateNewSourceFile);
+};
+
+// Use the custom host with createProgram
+const program = ts.createProgram({
+  rootNames: ['./src/index.ts'],
+  options,
+  host
+});
+```
+
+## Transpiling Single Files
+
+### ts.transpileModule()
+
+Transpiles a single TypeScript source string to JavaScript without type checking.
+
+```typescript
+function transpileModule(
+  input: string,
+  transpileOptions: TranspileOptions
+): TranspileOutput
+```
+
+<ParamField path="input" type="string" required>
+  TypeScript source code as a string
+</ParamField>
+
+<ParamField path="transpileOptions" type="TranspileOptions" required>
+  <ParamField path="compilerOptions" type="CompilerOptions">
+    Compiler options for transpilation
+  </ParamField>
+  
+  <ParamField path="fileName" type="string">
+    Optional file name (used for source maps)
+  </ParamField>
+  
+  <ParamField path="reportDiagnostics" type="boolean">
+    Whether to report diagnostics
+  </ParamField>
+  
+  <ParamField path="moduleName" type="string">
+    Module name for AMD/UMD output
+  </ParamField>
+  
+  <ParamField path="transformers" type="CustomTransformers">
+    Custom transformers to apply
+  </ParamField>
+</ParamField>
+
+**Returns:** `TranspileOutput` with properties:
+- `outputText`: The transpiled JavaScript code
+- `diagnostics`: Optional array of diagnostics
+- `sourceMapText`: Optional source map as a string
+
+### Example
+
+```typescript
+import * as ts from 'typescript';
+
+const source = `
+  const greet = (name: string): string => {
+    return \`Hello, \${name}!\`;
+  };
+  
+  console.log(greet("TypeScript"));
+`;
+
+const result = ts.transpileModule(source, {
+  compilerOptions: {
+    target: ts.ScriptTarget.ES2015,
+    module: ts.ModuleKind.CommonJS
+  }
+});
+
+console.log(result.outputText);
+// Output:
+// const greet = (name) => {
+//     return `Hello, ${name}!`;
+// };
+// console.log(greet("TypeScript"));
+```
+
+<Note>
+`transpileModule` is fast but doesn't perform type checking. Use `createProgram` with a full compilation for type checking.
+</Note>
+
 ## Complete Example
 
 ```typescript
