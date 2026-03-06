@@ -1,0 +1,744 @@
+---
+title: Completions API
+description: Code completion and IntelliSense API reference with real examples from completions.ts
+---
+
+The Completions API provides IntelliSense features like auto-complete suggestions, parameter hints, and import completions. This powers the dropdown suggestion list in editors.
+
+## Overview
+
+Completions are retrieved in two steps:
+
+1. **Get completion list** with `getCompletionsAtPosition()` - Fast, returns basic info
+2. **Get entry details** with `getCompletionEntryDetails()` - Slower, called when user selects an item
+
+This two-phase approach optimizes performance by deferring expensive operations until needed.
+
+## getCompletionsAtPosition
+
+Returns completion suggestions at a specific position in a file.
+
+### Signature
+
+```typescript
+function getCompletionsAtPosition(
+  fileName: string,
+  position: number,
+  options?: GetCompletionsAtPositionOptions,
+  formattingSettings?: FormatCodeSettings
+): CompletionInfo | undefined;
+```
+
+### Parameters
+
+<ParamField path="fileName" type="string" required>
+  The path to the source file.
+</ParamField>
+
+<ParamField path="position" type="number" required>
+  Zero-based character offset in the file where completions are requested.
+</ParamField>
+
+<ParamField path="options" type="GetCompletionsAtPositionOptions">
+  Options controlling what completions to return:
+  
+  ```typescript
+  interface GetCompletionsAtPositionOptions {
+    // Trigger character that caused completions (e.g., '.', '@')
+    triggerCharacter?: CompletionsTriggerCharacter;
+    
+    // Why completions were requested
+    triggerKind?: CompletionTriggerKind;
+    
+    // Include module exports as auto-imports
+    includeCompletionsForModuleExports?: boolean;
+    
+    // Include completions with additional text insertion
+    includeCompletionsWithInsertText?: boolean;
+    
+    // Include snippets like class member templates
+    includeCompletionsWithSnippetText?: boolean;
+    
+    // Include automatic optional chain completions
+    includeAutomaticOptionalChainCompletions?: boolean;
+    
+    // Include completions for import statements
+    includeCompletionsForImportStatements?: boolean;
+    
+    // Include package.json dependencies
+    includePackageJsonAutoImports?: 'auto' | 'on' | 'off';
+  }
+  ```
+</ParamField>
+
+<ParamField path="formattingSettings" type="FormatCodeSettings">
+  Formatting options for generated code in completions.
+</ParamField>
+
+### Return Value
+
+```typescript
+interface CompletionInfo {
+  // Whether the list is complete or partial
+  isGlobalCompletion: boolean;
+  
+  // Whether completions are for an object member (e.g., after '.')
+  isMemberCompletion: boolean;
+  
+  // Whether typing an identifier at this location
+  isNewIdentifierLocation: boolean;
+  
+  // Whether more completions might be available
+  isIncomplete?: boolean;
+  
+  // List of completion entries
+  entries: CompletionEntry[];
+  
+  // Optional span to replace when completing
+  optionalReplacementSpan?: TextSpan;
+  
+  // Default characters that commit a completion
+  defaultCommitCharacters?: string[];
+}
+```
+
+### CompletionEntry
+
+```typescript
+interface CompletionEntry {
+  // Name of the completion (displayed in list)
+  name: string;
+  
+  // Kind of symbol (function, variable, etc.)
+  kind: ScriptElementKind;
+  
+  // Modifiers (optional, readonly, etc.)
+  kindModifiers?: string;
+  
+  // Sort order for displaying
+  sortText: string;
+  
+  // Text to insert (if different from name)
+  insertText?: string;
+  
+  // Is this a snippet with placeholders?
+  isSnippet?: boolean;
+  
+  // Replacement span for this completion
+  replacementSpan?: TextSpan;
+  
+  // Does this completion have a code action?
+  hasAction?: boolean;
+  
+  // Source of the completion (for auto-imports)
+  source?: string;
+  
+  // Display info for source module
+  sourceDisplay?: SymbolDisplayPart[];
+  
+  // Label details (signature, type, etc.)
+  labelDetails?: CompletionEntryLabelDetails;
+  
+  // Whether the symbol is deprecated
+  isDeprecated?: boolean;
+  
+  // Is this a recommended completion?
+  isRecommended?: boolean;
+  
+  // Data for resolving details later
+  data?: CompletionEntryData;
+}
+```
+
+## Example: Basic Completions
+
+```typescript Basic Usage
+import * as ts from 'typescript';
+
+const sourceFile = ts.createSourceFile(
+  'example.ts',
+  'const obj = { name: "test" };\nobj.',
+  ts.ScriptTarget.Latest
+);
+
+const completions = service.getCompletionsAtPosition(
+  'example.ts',
+  sourceFile.text.length, // After "obj."
+  {
+    includeCompletionsForModuleExports: false
+  }
+);
+
+if (completions) {
+  console.log('Available completions:');
+  completions.entries.forEach(entry => {
+    console.log(`  ${entry.name} (${entry.kind})`);
+  });
+}
+```
+
+<Expandable title="Output">
+```
+Available completions:
+  name (property)
+  toString (method)
+  hasOwnProperty (method)
+  ...
+```
+</Expandable>
+
+## Example: Auto-Import Completions
+
+```typescript Auto-Import
+// File: math.ts
+export function add(a: number, b: number): number {
+  return a + b;
+}
+
+export function multiply(a: number, b: number): number {
+  return a * b;
+}
+
+// File: app.ts
+// Type "add" and request completions
+const result = add
+//             ^
+
+const completions = service.getCompletionsAtPosition(
+  'app.ts',
+  position,
+  {
+    includeCompletionsForModuleExports: true,
+    includeCompletionsWithInsertText: true
+  }
+);
+
+completions?.entries.forEach(entry => {
+  if (entry.hasAction && entry.source) {
+    console.log(`${entry.name} from ${entry.source}`);
+  }
+});
+```
+
+<Expandable title="Output">
+```
+add from "./math"
+multiply from "./math"
+```
+</Expandable>
+
+## Example: Member Completions
+
+```typescript Member Completions
+const code = `
+interface User {
+  name: string;
+  age: number;
+  email: string;
+}
+
+const user: User = {
+  name: "John",
+  age: 30,
+  email: "john@example.com"
+};
+
+user.
+`;
+
+const position = code.lastIndexOf('.') + 1;
+
+const completions = service.getCompletionsAtPosition(
+  'app.ts',
+  position,
+  {}
+);
+
+if (completions) {
+  console.log('Member completions:');
+  console.log('isMemberCompletion:', completions.isMemberCompletion);
+  console.log('Entries:');
+  completions.entries
+    .filter(e => e.kind === ts.ScriptElementKind.memberVariableElement)
+    .forEach(e => console.log(`  ${e.name}: ${e.kindModifiers}`));
+}
+```
+
+## getCompletionEntryDetails
+
+Retrieve detailed information about a specific completion entry.
+
+### Signature
+
+```typescript
+function getCompletionEntryDetails(
+  fileName: string,
+  position: number,
+  entryName: string,
+  formatOptions: FormatCodeSettings | undefined,
+  source: string | undefined,
+  preferences: UserPreferences | undefined,
+  data: CompletionEntryData | undefined
+): CompletionEntryDetails | undefined;
+```
+
+### Parameters
+
+<ParamField path="fileName" type="string" required>
+  The path to the source file.
+</ParamField>
+
+<ParamField path="position" type="number" required>
+  Position where the completion was requested.
+</ParamField>
+
+<ParamField path="entryName" type="string" required>
+  The `name` field from the CompletionEntry.
+</ParamField>
+
+<ParamField path="formatOptions" type="FormatCodeSettings">
+  Formatting settings for code generation.
+</ParamField>
+
+<ParamField path="source" type="string">
+  The `source` field from the CompletionEntry (for auto-imports).
+</ParamField>
+
+<ParamField path="preferences" type="UserPreferences">
+  User preferences for code generation.
+</ParamField>
+
+<ParamField path="data" type="CompletionEntryData">
+  The `data` field from the CompletionEntry.
+</ParamField>
+
+### Return Value
+
+```typescript
+interface CompletionEntryDetails {
+  // Name of the completion
+  name: string;
+  
+  // Kind of symbol
+  kind: ScriptElementKind;
+  
+  // Modifiers
+  kindModifiers: string;
+  
+  // Full signature/type
+  displayParts: SymbolDisplayPart[];
+  
+  // JSDoc documentation
+  documentation?: SymbolDisplayPart[];
+  
+  // JSDoc tags (@param, @returns, etc.)
+  tags?: JSDocTagInfo[];
+  
+  // Code actions to perform when accepting this completion
+  codeActions?: CodeAction[];
+  
+  // Source of the completion
+  source?: SymbolDisplayPart[];
+  
+  // Source location of the symbol
+  sourceDisplay?: SymbolDisplayPart[];
+}
+```
+
+## Example: Completion Details
+
+```typescript Completion Details
+const completions = service.getCompletionsAtPosition(
+  'app.ts',
+  position,
+  options
+);
+
+if (completions) {
+  // User selected the first entry
+  const entry = completions.entries[0];
+  
+  const details = service.getCompletionEntryDetails(
+    'app.ts',
+    position,
+    entry.name,
+    formatOptions,
+    entry.source,
+    preferences,
+    entry.data
+  );
+  
+  if (details) {
+    // Full signature
+    const signature = details.displayParts
+      .map(p => p.text)
+      .join('');
+    console.log('Signature:', signature);
+    
+    // Documentation
+    if (details.documentation) {
+      const docs = details.documentation
+        .map(d => d.text)
+        .join('');
+      console.log('Documentation:', docs);
+    }
+    
+    // JSDoc tags
+    details.tags?.forEach(tag => {
+      console.log(`@${tag.name}:`, tag.text);
+    });
+    
+    // Code actions (e.g., adding imports)
+    if (details.codeActions) {
+      console.log('Code actions:');
+      details.codeActions.forEach(action => {
+        action.changes.forEach(change => {
+          console.log(`  ${change.fileName}:`);
+          change.textChanges.forEach(tc => {
+            console.log(`    ${tc.newText}`);
+          });
+        });
+      });
+    }
+  }
+}
+```
+
+<Expandable title="Example Output">
+```typescript
+Signature: function add(a: number, b: number): number
+Documentation: Adds two numbers together.
+@param a: The first number
+@param b: The second number
+@returns: The sum of a and b
+Code actions:
+  app.ts:
+    import { add } from "./math";
+```
+</Expandable>
+
+## Completion Triggers
+
+Completions can be triggered by specific characters:
+
+```typescript
+type CompletionsTriggerCharacter = 
+  | "."   // Member access
+  | '"'   // String literal
+  | "'"   // String literal
+  | "`"   // Template literal
+  | "/"   // Path in import
+  | "@"   // JSDoc or decorator
+  | "<"   // JSX
+  | "#"   // Private identifier
+  | " ";  // Space (import statements)
+```
+
+```typescript Trigger Examples
+// Trigger: '.'
+obj.|  // Member completions
+
+// Trigger: '@'
+@dec|  // Decorator completions
+
+// Trigger: '"' or "'"
+import { } from "|  // Module path completions
+
+// Trigger: '/'
+import { } from "./|  // File path completions
+
+// Trigger: '<'
+<MyCompon|  // JSX component completions
+
+// Trigger: '#'
+class C { #priv|  // Private member completions
+
+// Trigger: ' '
+import |  // Import statement completions
+```
+
+## Sort Text and Ordering
+
+The `sortText` field controls display order:
+
+```typescript
+// From completions.ts
+export const SortText = {
+  LocalDeclarationPriority: "10",        // Local variables
+  LocationPriority: "11",                // Nearby symbols
+  OptionalMember: "12",                  // Optional properties
+  MemberDeclaredBySpreadAssignment: "13",
+  SuggestedClassMembers: "14",           // Suggested members
+  GlobalsOrKeywords: "15",               // Global symbols
+  AutoImportSuggestions: "16",           // Auto-imports
+  ClassMemberSnippets: "17",             // Snippets
+  JavascriptIdentifiers: "18",           // JavaScript identifiers
+};
+```
+
+Lower sort text appears first in completion lists.
+
+## Example: Filtering Completions
+
+```typescript Filter by Kind
+const completions = service.getCompletionsAtPosition(
+  'app.ts',
+  position,
+  options
+);
+
+if (completions) {
+  // Get only functions
+  const functions = completions.entries.filter(
+    e => e.kind === ts.ScriptElementKind.functionElement
+  );
+  
+  // Get only types
+  const types = completions.entries.filter(
+    e => e.kind === ts.ScriptElementKind.interfaceElement ||
+         e.kind === ts.ScriptElementKind.typeElement
+  );
+  
+  // Get only auto-imports
+  const autoImports = completions.entries.filter(
+    e => e.hasAction && e.source
+  );
+  
+  // Get only snippets
+  const snippets = completions.entries.filter(
+    e => e.isSnippet
+  );
+}
+```
+
+## Commit Characters
+
+Characters that accept/commit a completion:
+
+```typescript
+// From completions.ts
+const allCommitCharacters = [".", ",", ";"];
+const noCommaCommitCharacters = [".", ";"];
+
+function getDefaultCommitCharacters(
+  isNewIdentifierLocation: boolean
+): string[] {
+  if (isNewIdentifierLocation) {
+    return [];
+  }
+  return allCommitCharacters;
+}
+```
+
+```typescript Usage
+const completions = service.getCompletionsAtPosition(
+  'app.ts',
+  position,
+  options
+);
+
+if (completions) {
+  // Use these characters to commit completions
+  const commitChars = completions.defaultCommitCharacters || [];
+  console.log('Commit characters:', commitChars); // ['.', ',', ';']
+}
+```
+
+## Performance Optimization
+
+The completions API is optimized for responsiveness:
+
+### Incomplete Completions
+
+When `options.allowIncompleteCompletions` is true, the Language Service may return partial results:
+
+```typescript
+const completions = service.getCompletionsAtPosition(
+  'app.ts',
+  position,
+  {
+    includeCompletionsForModuleExports: true,
+    // Allow incomplete for better responsiveness
+  }
+);
+
+if (completions?.isIncomplete) {
+  // Some completions were skipped for performance
+  // Request again to get full list
+  const fullCompletions = service.getCompletionsAtPosition(
+    'app.ts',
+    position,
+    options,
+    formattingSettings
+  );
+}
+```
+
+### Module Specifier Resolution
+
+```typescript
+// From completions.ts
+export const moduleSpecifierResolutionLimit = 100;
+export const moduleSpecifierResolutionCacheAttemptLimit = 1000;
+```
+
+Auto-import completions are limited to prevent performance issues in large projects.
+
+## Real-World Integration
+
+```typescript Complete Example
+import * as ts from 'typescript';
+import * as fs from 'fs';
+
+class CompletionProvider {
+  constructor(private service: ts.LanguageService) {}
+
+  async provideCompletions(
+    fileName: string,
+    position: number,
+    triggerCharacter?: string
+  ) {
+    const options: ts.GetCompletionsAtPositionOptions = {
+      includeCompletionsForModuleExports: true,
+      includeCompletionsWithInsertText: true,
+      includeCompletionsWithSnippetText: true,
+      includeAutomaticOptionalChainCompletions: true,
+      includeCompletionsForImportStatements: true,
+    };
+
+    if (triggerCharacter) {
+      options.triggerCharacter = 
+        triggerCharacter as ts.CompletionsTriggerCharacter;
+      options.triggerKind = 
+        ts.CompletionTriggerKind.TriggerCharacter;
+    }
+
+    const completions = this.service.getCompletionsAtPosition(
+      fileName,
+      position,
+      options
+    );
+
+    if (!completions) return [];
+
+    return completions.entries.map(entry => ({
+      label: entry.name,
+      kind: this.mapKind(entry.kind),
+      detail: entry.kindModifiers,
+      sortText: entry.sortText,
+      insertText: entry.insertText || entry.name,
+      isSnippet: entry.isSnippet,
+      source: entry.source,
+      data: { fileName, position, entry }
+    }));
+  }
+
+  async resolveCompletion(item: any) {
+    const { fileName, position, entry } = item.data;
+
+    const details = this.service.getCompletionEntryDetails(
+      fileName,
+      position,
+      entry.name,
+      undefined,
+      entry.source,
+      undefined,
+      entry.data
+    );
+
+    if (!details) return item;
+
+    return {
+      ...item,
+      documentation: this.formatDocumentation(details),
+      additionalTextEdits: this.getAdditionalEdits(details)
+    };
+  }
+
+  private formatDocumentation(details: ts.CompletionEntryDetails) {
+    const parts = [];
+
+    // Signature
+    if (details.displayParts) {
+      parts.push(
+        details.displayParts.map(p => p.text).join('')
+      );
+    }
+
+    // Documentation
+    if (details.documentation) {
+      parts.push(
+        details.documentation.map(d => d.text).join('')
+      );
+    }
+
+    // JSDoc tags
+    details.tags?.forEach(tag => {
+      parts.push(`@${tag.name} ${tag.text || ''}`);
+    });
+
+    return parts.join('\n\n');
+  }
+
+  private getAdditionalEdits(details: ts.CompletionEntryDetails) {
+    if (!details.codeActions) return [];
+
+    return details.codeActions.flatMap(action =>
+      action.changes.flatMap(change =>
+        change.textChanges.map(tc => ({
+          range: {
+            start: tc.span.start,
+            end: tc.span.start + tc.span.length
+          },
+          newText: tc.newText
+        }))
+      )
+    );
+  }
+
+  private mapKind(kind: ts.ScriptElementKind) {
+    // Map to LSP CompletionItemKind or editor's kind enum
+    const kindMap: Record<string, number> = {
+      [ts.ScriptElementKind.functionElement]: 3,      // Function
+      [ts.ScriptElementKind.variableElement]: 6,      // Variable
+      [ts.ScriptElementKind.memberFunctionElement]: 2, // Method
+      [ts.ScriptElementKind.memberVariableElement]: 5, // Field
+      [ts.ScriptElementKind.classElement]: 7,         // Class
+      [ts.ScriptElementKind.interfaceElement]: 8,     // Interface
+      // ... more mappings
+    };
+    return kindMap[kind] || 1; // Text
+  }
+}
+
+// Usage
+const provider = new CompletionProvider(service);
+
+// Get completions
+const items = await provider.provideCompletions(
+  'app.ts',
+  position,
+  '.'
+);
+
+// Resolve selected item
+const resolved = await provider.resolveCompletion(items[0]);
+console.log(resolved.documentation);
+```
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Language Service API" icon="code" href="./language-service">
+    Main Language Service reference
+  </Card>
+  <Card title="Diagnostics" icon="triangle-exclamation" href="./diagnostics">
+    Error reporting and diagnostics
+  </Card>
+  <Card title="Navigation" icon="compass" href="./navigation">
+    Go to definition and find references
+  </Card>
+  <Card title="Language Service Overview" icon="book" href="./language-service-overview">
+    Language Service architecture
+  </Card>
+</CardGroup>

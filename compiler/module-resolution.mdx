@@ -1,0 +1,540 @@
+---
+title: "Module Resolution"
+description: "How TypeScript resolves module imports and file paths"
+---
+
+## Module Resolution Overview
+
+Module resolution is the process of determining which file an `import` statement refers to. TypeScript's module resolution logic is implemented in `src/compiler/moduleNameResolver.ts` (181KB).
+
+```typescript
+// TypeScript needs to find the file for this import
+import { helper } from "./utils";
+```
+
+<Info>
+Module resolution is separate from type checking and happens during the program creation phase.
+</Info>
+
+## Resolution Strategies
+
+TypeScript supports multiple module resolution strategies:
+
+### ModuleResolutionKind
+
+```typescript
+// From src/compiler/moduleNameResolver.ts
+enum ModuleResolutionKind {
+    Classic = 1,
+    NodeJs = 2,
+    Node10 = 2,      // Alias for NodeJs
+    Node16 = 3,
+    NodeNext = 99,
+    Bundler = 100,
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="Classic" icon="clock">
+    Legacy resolution strategy. Rarely used in modern projects.
+  </Card>
+  
+  <Card title="Node10 (NodeJs)" icon="node">
+    Mimics Node.js CommonJS resolution. Most common for older projects.
+  </Card>
+  
+  <Card title="Node16" icon="node-js">
+    Supports both ESM and CommonJS with package.json "exports".
+  </Card>
+  
+  <Card title="NodeNext" icon="arrows-rotate">
+    Latest Node.js resolution. Tracks Node.js updates.
+  </Card>
+  
+  <Card title="Bundler" icon="box">
+    Optimized for bundlers like webpack, esbuild. Relaxed rules.
+  </Card>
+</CardGroup>
+
+## Node Resolution Algorithm
+
+### Node10 Resolution (Classic Node.js)
+
+For relative imports like `import { x } from "./module"`:
+
+<Steps>
+  <Step title="Try Extensions">
+    Look for the file with TypeScript extensions:
+    
+    ```
+    ./module.ts
+    ./module.tsx
+    ./module.d.ts
+    ```
+  </Step>
+  
+  <Step title="Try Directory Index">
+    If not found, check for directory with index file:
+    
+    ```
+    ./module/index.ts
+    ./module/index.tsx
+    ./module/index.d.ts
+    ```
+  </Step>
+  
+  <Step title="Try package.json">
+    Check for package.json with "types" or "typings" field:
+    
+    ```json
+    // ./module/package.json
+    {
+      "types": "./dist/index.d.ts"
+    }
+    ```
+  </Step>
+</Steps>
+
+For non-relative imports like `import { x } from "library"`:
+
+<Steps>
+  <Step title="Check node_modules">
+    Look in the current directory's node_modules:
+    
+    ```
+    ./node_modules/library/...
+    ```
+  </Step>
+  
+  <Step title="Walk Up Directory Tree">
+    If not found, check parent directories:
+    
+    ```
+    ../node_modules/library/...
+    ../../node_modules/library/...
+    ```
+  </Step>
+  
+  <Step title="Resolve Package">
+    Once found, apply relative resolution rules to the package.
+  </Step>
+</Steps>
+
+### Node16/NodeNext Resolution
+
+These modes support package.json `exports` field:
+
+```json
+// node_modules/library/package.json
+{
+  "name": "library",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    },
+    "./utils": {
+      "types": "./dist/utils.d.ts",
+      "import": "./dist/esm/utils.js"
+    }
+  }
+}
+```
+
+<Note>
+Node16/NodeNext enforce that ESM imports must include file extensions:
+
+```typescript
+// Required in Node16/NodeNext with "type": "module"
+import { x } from "./module.js"; // ✓
+import { x } from "./module";     // ✗ Error
+```
+</Note>
+
+## Resolution Features
+
+TypeScript extends Node's resolution with additional features:
+
+### Path Mapping
+
+Configure custom module paths in `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "paths": {
+      "@utils/*": ["utils/*"],
+      "@components/*": ["components/*"],
+      "@app/*": ["app/*"]
+    }
+  }
+}
+```
+
+```typescript
+// Instead of relative imports:
+import { Button } from "../../../components/Button";
+
+// Use mapped paths:
+import { Button } from "@components/Button";
+```
+
+### Base URL
+
+Set a base directory for non-relative imports:
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": "./src"
+  }
+}
+```
+
+```typescript
+// With baseUrl set to "./src"
+import { config } from "config"; // Resolves to src/config
+```
+
+### Root Dirs
+
+Treat multiple directories as a single virtual directory:
+
+```json
+{
+  "compilerOptions": {
+    "rootDirs": ["src", "generated"]
+  }
+}
+```
+
+```
+project/
+  src/
+    app.ts
+  generated/
+    models.ts
+```
+
+```typescript
+// In src/app.ts - treated as same root
+import { Model } from "./models"; // Finds generated/models.ts
+```
+
+## Module Resolution State
+
+The resolver maintains state during resolution:
+
+```typescript
+// From src/compiler/moduleNameResolver.ts
+interface ModuleResolutionState {
+    compilerOptions: CompilerOptions;
+    host: ModuleResolutionHost;
+    traceEnabled: boolean;
+    failedLookupLocations: string[];
+    affectingLocations: string[];
+    resultFromCache?: ResolvedModuleWithFailedLookupLocations;
+}
+```
+
+### Resolution Tracing
+
+Enable detailed resolution logging:
+
+```json
+{
+  "compilerOptions": {
+    "traceResolution": true
+  }
+}
+```
+
+Output:
+```
+======== Resolving module './utils' from '/project/src/app.ts'. ========
+Module resolution kind is not specified, using 'Node10'.
+Loading module as file / folder, candidate module location '/project/src/utils', target file types: TypeScript, Declaration.
+File '/project/src/utils.ts' exists - use it as a name resolution result.
+======== Module name './utils' was successfully resolved to '/project/src/utils.ts'. ========
+```
+
+## Resolution Caching
+
+Module resolution results are cached for performance:
+
+```typescript
+// From src/compiler/program.ts
+const moduleResolutionCache = createModuleResolutionCache(
+    currentDirectory,
+    getCanonicalFileName,
+    options
+);
+```
+
+<Info>
+The cache is invalidated when:
+- Compiler options change
+- Files are added/removed
+- package.json files change
+</Info>
+
+## Resolution Result
+
+Successful resolution returns:
+
+```typescript
+interface ResolvedModuleWithFailedLookupLocations {
+    resolvedModule?: ResolvedModule;
+    failedLookupLocations: string[];
+    affectingLocations: string[];
+    resolutionDiagnostics?: Diagnostic[];
+}
+
+interface ResolvedModule {
+    resolvedFileName: string;
+    originalPath?: string;
+    extension: Extension;
+    isExternalLibraryImport?: boolean;
+    packageId?: PackageId;
+}
+```
+
+## Extension Resolution
+
+The resolver tries different file extensions:
+
+```typescript
+// From src/compiler/moduleNameResolver.ts
+enum Extensions {
+    TypeScript  = 1 << 0, // .ts, .tsx, .mts, .cts
+    JavaScript  = 1 << 1, // .js, .jsx, .mjs, .cjs
+    Declaration = 1 << 2, // .d.ts, .d.mts, .d.cts
+    Json        = 1 << 3, // .json
+    
+    ImplementationFiles = TypeScript | JavaScript,
+}
+```
+
+### Extension Priority
+
+<Tabs>
+  <Tab title="Standard Import">
+    ```typescript
+    import { x } from "./module";
+    ```
+    
+    Resolution order:
+    1. `module.ts`
+    2. `module.tsx`
+    3. `module.d.ts`
+    4. `module/index.ts`
+    5. `module/index.tsx`
+    6. `module/index.d.ts`
+  </Tab>
+  
+  <Tab title="Type-Only Import">
+    ```typescript
+    import type { x } from "./module";
+    ```
+    
+    Resolution order:
+    1. `module.d.ts`
+    2. `module.ts`
+    3. `module.tsx`
+  </Tab>
+  
+  <Tab title="JSON Import">
+    ```typescript
+    import config from "./config.json";
+    ```
+    
+    Requires:
+    ```json
+    {
+      "compilerOptions": {
+        "resolveJsonModule": true
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Package.json Support
+
+TypeScript respects several package.json fields:
+
+### Standard Fields
+
+```json
+{
+  "name": "my-library",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "typings": "./dist/index.d.ts"
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="types" icon="file-code">
+    Primary field for TypeScript declarations
+  </Card>
+  
+  <Card title="typings" icon="file-lines">
+    Alternative to "types" (older packages)
+  </Card>
+  
+  <Card title="main" icon="door-open">
+    Fallback entry point
+  </Card>
+</CardGroup>
+
+### Exports Field (Node16+)
+
+```json
+{
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./esm/index.js",
+      "require": "./cjs/index.js",
+      "default": "./index.js"
+    },
+    "./package.json": "./package.json"
+  }
+}
+```
+
+### Type Versioning
+
+```json
+{
+  "typesVersions": {
+    ">=4.5": {
+      "*": ["ts4.5/*"]
+    },
+    "*": {
+      "*": ["ts4.0/*"]
+    }
+  }
+}
+```
+
+## Resolution Modes
+
+### Import vs Require Resolution
+
+```typescript
+// In Node16/NodeNext, resolution mode depends on file type
+
+// In .mts or "type": "module"
+import { x } from "library"; // Uses "import" condition
+
+// In .cts or without "type": "module"
+const { x } = require("library"); // Uses "require" condition
+```
+
+### Triple-Slash Directives
+
+```typescript
+/// <reference types="node" />
+/// <reference path="./custom.d.ts" />
+```
+
+## Troubleshooting Resolution
+
+<AccordionGroup>
+  <Accordion title="Module Not Found">
+    **Problem**: `Cannot find module './utils' or its corresponding type declarations.`
+    
+    **Solutions**:
+    - Verify the file exists
+    - Check file extension requirements (Node16+)
+    - Enable `traceResolution` to see lookup paths
+    - Check `baseUrl` and `paths` configuration
+  </Accordion>
+  
+  <Accordion title="Wrong File Resolved">
+    **Problem**: TypeScript resolves to an unexpected file.
+    
+    **Solutions**:
+    - Clear the module resolution cache
+    - Check for multiple `node_modules` directories
+    - Verify `paths` mapping order
+    - Review package.json "exports" field
+  </Accordion>
+  
+  <Accordion title="Type Declarations Missing">
+    **Problem**: Library found but no type declarations.
+    
+    **Solutions**:
+    - Install `@types/library` package
+    - Check package.json "types" field
+    - Add ambient declarations (`.d.ts` file)
+    - Use `skipLibCheck` as temporary workaround
+  </Accordion>
+  
+  <Accordion title="Package.json Exports Not Working">
+    **Problem**: Exports field ignored.
+    
+    **Solutions**:
+    - Use `Node16` or `NodeNext` module resolution
+    - Update TypeScript to 4.7+
+    - Verify exports field syntax
+    - Check for "types" condition in exports
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Card title="Use Modern Resolution" icon="star">
+  Prefer `Node16` or `NodeNext` for new projects to support package.json exports.
+  
+  ```json
+  {
+    "compilerOptions": {
+      "moduleResolution": "NodeNext"
+    }
+  }
+  ```
+</Card>
+
+<Card title="Avoid Deep Relative Imports" icon="diagram-project">
+  Use path mapping to simplify imports:
+  
+  ```json
+  {
+    "compilerOptions": {
+      "paths": {
+        "@/*": ["src/*"]
+      }
+    }
+  }
+  ```
+</Card>
+
+<Card title="Enable Resolution Tracing" icon="bug">
+  Use `traceResolution` during debugging:
+  
+  ```json
+  {
+    "compilerOptions": {
+      "traceResolution": true
+    }
+  }
+  ```
+</Card>
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Compiler Overview" icon="book" href="./overview">
+    Learn about the full compilation pipeline
+  </Card>
+  
+  <Card title="Emit" icon="file-export" href="./emit">
+    Understand JavaScript generation
+  </Card>
+</CardGroup>

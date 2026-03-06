@@ -1,0 +1,798 @@
+---
+title: "Emit"
+description: "How TypeScript generates JavaScript, declaration files, and source maps"
+---
+
+## The Emitter
+
+The emitter is the final stage of compilation, responsible for generating output files. Located in `src/compiler/emitter.ts` (273KB), it transforms the type-checked AST into JavaScript and declaration files.
+
+### Emit Entry Point
+
+```typescript
+// From src/compiler/emitter.ts (line 752)
+export function emitFiles(
+    resolver: EmitResolver,
+    host: EmitHost,
+    targetSourceFile: SourceFile | undefined,
+    { scriptTransformers, declarationTransformers }: EmitTransformers,
+    emitOnly: boolean | EmitOnly | undefined,
+): EmitResult
+```
+
+<Info>
+The emitter uses the resolver to query type information and applies transformers to modify the output.
+</Info>
+
+## Emit Process
+
+<Steps>
+  <Step title="Transform AST">
+    Apply transformers to modify the syntax tree:
+    
+    ```typescript
+    // Transformers convert TypeScript features to JavaScript
+    // Example: async/await → generator functions (for ES5)
+    async function getData() {
+        return await fetch("/api");
+    }
+    
+    // Transformed to:
+    function getData() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield fetch("/api");
+        });
+    }
+    ```
+  </Step>
+  
+  <Step title="Generate Code">
+    Convert AST nodes to JavaScript text:
+    
+    ```typescript
+    // TypeScript input
+    interface User {
+        name: string;
+        age: number;
+    }
+    
+    class UserManager {
+        getUser(): User {
+            return { name: "Alice", age: 30 };
+        }
+    }
+    
+    // JavaScript output (ES5)
+    var UserManager = /** @class */ (function () {
+        function UserManager() {
+        }
+        UserManager.prototype.getUser = function () {
+            return { name: "Alice", age: 30 };
+        };
+        return UserManager;
+    }());
+    ```
+  </Step>
+  
+  <Step title="Create Declaration Files">
+    Generate `.d.ts` files for type information:
+    
+    ```typescript
+    // Generated .d.ts file
+    interface User {
+        name: string;
+        age: number;
+    }
+    
+    declare class UserManager {
+        getUser(): User;
+    }
+    ```
+  </Step>
+  
+  <Step title="Generate Source Maps">
+    Create mappings between output and source:
+    
+    ```json
+    {
+      "version": 3,
+      "file": "output.js",
+      "sourceRoot": "",
+      "sources": ["input.ts"],
+      "mappings": "AAAA,IAAM,CAAC,GAAG,CAAC..."
+    }
+    ```
+  </Step>
+</Steps>
+
+## Output Formats
+
+TypeScript can emit different JavaScript module formats:
+
+### Module Formats
+
+<Tabs>
+  <Tab title="CommonJS">
+    Node.js style modules:
+    
+    ```typescript
+    // Input
+    export function greet(name: string) {
+        return `Hello, ${name}`;
+    }
+    
+    // Output (CommonJS)
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.greet = greet;
+    function greet(name) {
+        return "Hello, " + name;
+    }
+    ```
+    
+    Config:
+    ```json
+    {
+      "compilerOptions": {
+        "module": "CommonJS"
+      }
+    }
+    ```
+  </Tab>
+  
+  <Tab title="ES Modules">
+    ECMAScript modules:
+    
+    ```typescript
+    // Input
+    export function greet(name: string) {
+        return `Hello, ${name}`;
+    }
+    
+    // Output (ESNext)
+    export function greet(name) {
+        return `Hello, ${name}`;
+    }
+    ```
+    
+    Config:
+    ```json
+    {
+      "compilerOptions": {
+        "module": "ESNext"
+      }
+    }
+    ```
+  </Tab>
+  
+  <Tab title="UMD">
+    Universal Module Definition:
+    
+    ```javascript
+    (function (factory) {
+        if (typeof module === "object" && typeof module.exports === "object") {
+            // CommonJS
+            var v = factory(require, exports);
+            if (v !== undefined) module.exports = v;
+        }
+        else if (typeof define === "function" && define.amd) {
+            // AMD
+            define(["require", "exports"], factory);
+        }
+    })(function (require, exports) {
+        "use strict";
+        Object.defineProperty(exports, "__esModule", { value: true });
+        // ...
+    });
+    ```
+    
+    Config:
+    ```json
+    {
+      "compilerOptions": {
+        "module": "UMD"
+      }
+    }
+    ```
+  </Tab>
+  
+  <Tab title="System">
+    SystemJS modules:
+    
+    ```javascript
+    System.register([], function (exports_1, context_1) {
+        "use strict";
+        var greet;
+        var __moduleName = context_1 && context_1.id;
+        return {
+            setters: [],
+            execute: function () {
+                exports_1("greet", greet = function (name) {
+                    return "Hello, " + name;
+                });
+            }
+        };
+    });
+    ```
+    
+    Config:
+    ```json
+    {
+      "compilerOptions": {
+        "module": "System"
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Emit Targets
+
+The `target` option controls which JavaScript version is emitted:
+
+<CardGroup cols={3}>
+  <Card title="ES3" icon="clock">
+    Ancient JavaScript (IE8 and below)
+    
+    ```json
+    { "target": "ES3" }
+    ```
+  </Card>
+  
+  <Card title="ES5" icon="gear">
+    Modern legacy (IE9-11)
+    
+    ```json
+    { "target": "ES5" }
+    ```
+  </Card>
+  
+  <Card title="ES2015+" icon="rocket">
+    Modern JavaScript
+    
+    ```json
+    { "target": "ES2020" }
+    ```
+  </Card>
+  
+  <Card title="ESNext" icon="star">
+    Latest features
+    
+    ```json
+    { "target": "ESNext" }
+    ```
+  </Card>
+</CardGroup>
+
+### Target Impact on Output
+
+<Tabs>
+  <Tab title="Classes">
+    **ES2015+**:
+    ```javascript
+    class Point {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+    ```
+    
+    **ES5**:
+    ```javascript
+    var Point = /** @class */ (function () {
+        function Point(x, y) {
+            this.x = x;
+            this.y = y;
+        }
+        return Point;
+    }());
+    ```
+  </Tab>
+  
+  <Tab title="Arrow Functions">
+    **ES2015+**:
+    ```javascript
+    const add = (a, b) => a + b;
+    ```
+    
+    **ES5**:
+    ```javascript
+    var add = function (a, b) { return a + b; };
+    ```
+  </Tab>
+  
+  <Tab title="Async/Await">
+    **ES2017+**:
+    ```javascript
+    async function fetchData() {
+        return await fetch("/api");
+    }
+    ```
+    
+    **ES2015**:
+    ```javascript
+    function fetchData() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield fetch("/api");
+        });
+    }
+    ```
+    
+    **ES5**:
+    ```javascript
+    function fetchData() {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4, fetch("/api")];
+                    case 1: return [2, _a.sent()];
+                }
+            });
+        });
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Destructuring">
+    **ES2015+**:
+    ```javascript
+    const { x, y } = point;
+    ```
+    
+    **ES5**:
+    ```javascript
+    var x = point.x, y = point.y;
+    ```
+  </Tab>
+</Tabs>
+
+## Declaration Files
+
+Declaration files (`.d.ts`) contain type information without implementation:
+
+### Generating Declarations
+
+```json
+{
+  "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": false
+  }
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="declaration" icon="file-lines">
+    Generate `.d.ts` files alongside JavaScript
+  </Card>
+  
+  <Card title="declarationMap" icon="map">
+    Generate source maps for declaration files
+  </Card>
+  
+  <Card title="emitDeclarationOnly" icon="filter">
+    Emit only `.d.ts` files (skip JavaScript)
+  </Card>
+</CardGroup>
+
+### Declaration File Example
+
+```typescript
+// source.ts
+export class Calculator {
+    private value = 0;
+    
+    add(n: number): this {
+        this.value += n;
+        return this;
+    }
+    
+    getResult(): number {
+        return this.value;
+    }
+}
+
+export function multiply(a: number, b: number): number {
+    return a * b;
+}
+```
+
+```typescript
+// source.d.ts (generated)
+export declare class Calculator {
+    private value;
+    add(n: number): this;
+    getResult(): number;
+}
+
+export declare function multiply(a: number, b: number): number;
+```
+
+## Source Maps
+
+Source maps enable debugging TypeScript code in browsers:
+
+### Source Map Configuration
+
+```json
+{
+  "compilerOptions": {
+    "sourceMap": true,
+    "inlineSourceMap": false,
+    "inlineSources": false,
+    "sourceRoot": "",
+    "mapRoot": ""
+  }
+}
+```
+
+<AccordionGroup>
+  <Accordion title="sourceMap">
+    Generate separate `.js.map` files:
+    
+    ```javascript
+    // output.js
+    var x = 1;
+    //# sourceMappingURL=output.js.map
+    ```
+  </Accordion>
+  
+  <Accordion title="inlineSourceMap">
+    Embed source map in JavaScript file:
+    
+    ```javascript
+    // output.js
+    var x = 1;
+    //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9u...
+    ```
+  </Accordion>
+  
+  <Accordion title="inlineSources">
+    Include original TypeScript source in source map:
+    
+    ```json
+    {
+      "version": 3,
+      "sources": ["input.ts"],
+      "sourcesContent": ["const x: number = 1;"],
+      "mappings": "AAAA,IAAM,CAAC,GAAG,CAAC"
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Transformers
+
+Transformers modify the AST before emission:
+
+### Built-in Transformers
+
+<Tabs>
+  <Tab title="Type Erasure">
+    Removes TypeScript-specific syntax:
+    
+    ```typescript
+    // Input
+    function greet(name: string): string {
+        return `Hello, ${name}`;
+    }
+    
+    // Output
+    function greet(name) {
+        return `Hello, ${name}`;
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Enum Transformation">
+    Converts enums to JavaScript objects:
+    
+    ```typescript
+    // Input
+    enum Color {
+        Red,
+        Green,
+        Blue
+    }
+    
+    // Output
+    var Color;
+    (function (Color) {
+        Color[Color["Red"] = 0] = "Red";
+        Color[Color["Green"] = 1] = "Green";
+        Color[Color["Blue"] = 2] = "Blue";
+    })(Color || (Color = {}));
+    ```
+  </Tab>
+  
+  <Tab title="Namespace Transformation">
+    Converts namespaces to IIFEs:
+    
+    ```typescript
+    // Input
+    namespace Utils {
+        export function log(msg: string) {
+            console.log(msg);
+        }
+    }
+    
+    // Output
+    var Utils;
+    (function (Utils) {
+        function log(msg) {
+            console.log(msg);
+        }
+        Utils.log = log;
+    })(Utils || (Utils = {}));
+    ```
+  </Tab>
+  
+  <Tab title="Decorator Transformation">
+    Applies decorator metadata:
+    
+    ```typescript
+    // Input
+    @sealed
+    class BugReport {
+        @validate
+        title: string;
+    }
+    
+    // Output (simplified)
+    let BugReport = class BugReport {
+    };
+    __decorate([
+        validate
+    ], BugReport.prototype, "title", void 0);
+    BugReport = __decorate([
+        sealed
+    ], BugReport);
+    ```
+  </Tab>
+</Tabs>
+
+### Custom Transformers
+
+```typescript
+// Define a custom transformer
+import ts from "typescript";
+
+const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
+    return (sourceFile) => {
+        const visitor = (node: ts.Node): ts.Node => {
+            // Transform nodes here
+            if (ts.isStringLiteral(node)) {
+                return ts.factory.createStringLiteral(
+                    node.text.toUpperCase()
+                );
+            }
+            return ts.visitEachChild(node, visitor, context);
+        };
+        return ts.visitNode(sourceFile, visitor);
+    };
+};
+
+// Use with program
+program.emit(
+    undefined,
+    undefined,
+    undefined,
+    false,
+    { before: [transformer] }
+);
+```
+
+## Emit Options
+
+### Output Control
+
+```json
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "outFile": "./bundle.js",
+    "removeComments": true,
+    "noEmit": false,
+    "noEmitOnError": true
+  }
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="outDir" icon="folder">
+    Directory for output files
+  </Card>
+  
+  <Card title="outFile" icon="file">
+    Concatenate output into single file
+  </Card>
+  
+  <Card title="removeComments" icon="comment-slash">
+    Strip comments from output
+  </Card>
+  
+  <Card title="noEmit" icon="ban">
+    Skip emit entirely (type checking only)
+  </Card>
+  
+  <Card title="noEmitOnError" icon="exclamation-triangle">
+    Don't emit if there are errors
+  </Card>
+</CardGroup>
+
+### JavaScript Emit Options
+
+```json
+{
+  "compilerOptions": {
+    "importHelpers": true,
+    "downlevelIteration": true,
+    "preserveConstEnums": false,
+    "removeComments": false,
+    "newLine": "lf"
+  }
+}
+```
+
+<AccordionGroup>
+  <Accordion title="importHelpers">
+    Import helper functions from `tslib` instead of inlining:
+    
+    ```typescript
+    // Without importHelpers
+    var __awaiter = (this && this.__awaiter) || function() { /* ... */ };
+    
+    // With importHelpers
+    import { __awaiter } from "tslib";
+    ```
+  </Accordion>
+  
+  <Accordion title="downlevelIteration">
+    Emit more accurate iteration for ES5/ES3:
+    
+    ```typescript
+    // Input
+    for (const item of array) { }
+    
+    // With downlevelIteration (accurate)
+    for (var _i = 0, array_1 = array; _i < array_1.length; _i++) {
+        var item = array_1[_i];
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="preserveConstEnums">
+    Keep `const enum` declarations in output:
+    
+    ```typescript
+    // Input
+    const enum E { A = 1 }
+    
+    // Without preserve (inlined)
+    console.log(1);
+    
+    // With preserve (kept)
+    var E;
+    (function (E) { E[E["A"] = 1] = "A"; })(E || (E = {}));
+    console.log(1);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Emit Helpers
+
+TypeScript uses helper functions for downleveling:
+
+```typescript
+// Common helpers from emitter.ts
+var __extends = (this && this.__extends) || /* ... */;
+var __awaiter = (this && this.__awaiter) || /* ... */;
+var __generator = (this && this.__generator) || /* ... */;
+var __decorate = (this && this.__decorate) || /* ... */;
+var __spreadArray = (this && this.__spreadArray) || /* ... */;
+```
+
+<Tip>
+Use `importHelpers: true` to import from `tslib` instead of duplicating helpers:
+
+```bash
+npm install tslib
+```
+
+```json
+{
+  "compilerOptions": {
+    "importHelpers": true
+  }
+}
+```
+</Tip>
+
+## Incremental Emit
+
+TypeScript can store compilation state for faster rebuilds:
+
+```json
+{
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": "./.tsbuildinfo"
+  }
+}
+```
+
+The `.tsbuildinfo` file contains:
+- File hashes
+- Dependency graph
+- Emit signatures
+- Diagnostic information
+
+<Info>
+Incremental compilation can dramatically speed up rebuilds by only recompiling changed files and their dependents.
+</Info>
+
+## Best Practices
+
+<Card title="Match Target to Environment" icon="crosshairs">
+  Set `target` based on your runtime:
+  
+  ```json
+  {
+    "compilerOptions": {
+      "target": "ES2020",  // Modern browsers
+      "lib": ["ES2020", "DOM"]
+    }
+  }
+  ```
+</Card>
+
+<Card title="Enable Source Maps" icon="map">
+  Always generate source maps for debugging:
+  
+  ```json
+  {
+    "compilerOptions": {
+      "sourceMap": true
+    }
+  }
+  ```
+</Card>
+
+<Card title="Use Declaration Maps" icon="map-location-dot">
+  For libraries, enable declaration maps:
+  
+  ```json
+  {
+    "compilerOptions": {
+      "declaration": true,
+      "declarationMap": true
+    }
+  }
+  ```
+</Card>
+
+<Card title="Optimize Bundle Size" icon="compress">
+  Use `importHelpers` to reduce duplication:
+  
+  ```json
+  {
+    "compilerOptions": {
+      "importHelpers": true
+    }
+  }
+  ```
+</Card>
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Compiler Overview" icon="book" href="./overview">
+    Learn about the full compilation pipeline
+  </Card>
+  
+  <Card title="Type Checking" icon="check" href="./type-checking">
+    Understand type validation
+  </Card>
+</CardGroup>

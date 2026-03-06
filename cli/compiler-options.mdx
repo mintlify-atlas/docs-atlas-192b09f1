@@ -1,0 +1,1793 @@
+---
+title: Compiler Options Reference
+description: Complete reference for all TypeScript compiler options with real examples
+---
+
+TypeScript compiler options control how the TypeScript compiler processes your code. These options can be specified on the command line with `tsc` or in a `tsconfig.json` file.
+
+## Language and Environment
+
+### target
+
+<ParamField path="target" type="string" default="ES3">
+  Set the JavaScript language version for emitted JavaScript and include compatible library declarations.
+  
+  **Valid values:** `ES3`, `ES5`, `ES6`/`ES2015`, `ES2016`, `ES2017`, `ES2018`, `ES2019`, `ES2020`, `ES2021`, `ES2022`, `ES2023`, `ES2024`, `ES2025`, `ESNext`
+  
+  **Command line:**
+  ```bash
+  tsc --target ES2020
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "target": "ES2020"
+    }
+  }
+  ```
+</ParamField>
+
+### lib
+
+<ParamField path="lib" type="string[]">
+  Specify a set of bundled library declaration files that describe the target runtime environment.
+  
+  **Common values:** `ES5`, `ES2015`, `ES2016`, `ES2017`, `ES2018`, `ES2019`, `ES2020`, `ES2021`, `ES2022`, `ES2023`, `ES2024`, `ES2025`, `ESNext`, `DOM`, `DOM.Iterable`, `WebWorker`, `ScriptHost`
+  
+  **Command line:**
+  ```bash
+  tsc --lib ES2020,DOM,DOM.Iterable
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "lib": ["ES2020", "DOM", "DOM.Iterable"]
+    }
+  }
+  ```
+</ParamField>
+
+### jsx
+
+<ParamField path="jsx" type="string">
+  Specify what JSX code is generated.
+  
+  **Valid values:**
+  - `preserve` - Keep JSX syntax as-is
+  - `react` - Emit React.createElement calls
+  - `react-jsx` - Emit _jsx calls (React 17+)
+  - `react-jsxdev` - Emit _jsxDEV calls (development)
+  - `react-native` - Keep JSX but emit .js files
+  
+  **Command line:**
+  ```bash
+  tsc --jsx react-jsx
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "jsx": "react-jsx"
+    }
+  }
+  ```
+</ParamField>
+
+### experimentalDecorators
+
+<ParamField path="experimentalDecorators" type="boolean" default="false">
+  Enable experimental support for legacy experimental decorators.
+  
+  **Command line:**
+  ```bash
+  tsc --experimentalDecorators
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "experimentalDecorators": true
+    }
+  }
+  ```
+</ParamField>
+
+### emitDecoratorMetadata
+
+<ParamField path="emitDecoratorMetadata" type="boolean" default="false">
+  Emit design-type metadata for decorated declarations in source files.
+  
+  **Command line:**
+  ```bash
+  tsc --emitDecoratorMetadata
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "emitDecoratorMetadata": true,
+      "experimentalDecorators": true
+    }
+  }
+  ```
+</ParamField>
+
+### jsxFactory
+
+<ParamField path="jsxFactory" type="string" default="React.createElement">
+  Specify the JSX factory function used when targeting React JSX emit.
+  
+  **Command line:**
+  ```bash
+  tsc --jsxFactory h
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "jsx": "react",
+      "jsxFactory": "h"
+    }
+  }
+  ```
+</ParamField>
+
+### jsxFragmentFactory
+
+<ParamField path="jsxFragmentFactory" type="string" default="React.Fragment">
+  Specify the JSX Fragment reference used for fragments when targeting React JSX emit.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "jsx": "react",
+      "jsxFragmentFactory": "Fragment"
+    }
+  }
+  ```
+</ParamField>
+
+### jsxImportSource
+
+<ParamField path="jsxImportSource" type="string" default="react">
+  Specify module specifier used to import the JSX factory functions when using jsx: react-jsx.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "jsx": "react-jsx",
+      "jsxImportSource": "preact"
+    }
+  }
+  ```
+</ParamField>
+
+### noLib
+
+<ParamField path="noLib" type="boolean" default="false">
+  Disable including any library files including the default lib.d.ts.
+  
+  **Command line:**
+  ```bash
+  tsc --noLib
+  ```
+</ParamField>
+
+### useDefineForClassFields
+
+<ParamField path="useDefineForClassFields" type="boolean" default="true for ES2022+">
+  Emit ECMAScript-standard-compliant class fields.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "useDefineForClassFields": true
+    }
+  }
+  ```
+</ParamField>
+
+### moduleDetection
+
+<ParamField path="moduleDetection" type="string" default="auto">
+  Control what method is used to detect module-format JS files.
+  
+  **Valid values:**
+  - `auto` - Treat files with imports/exports as modules
+  - `legacy` - Only .mts/.cts are modules
+  - `force` - All files are modules
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "moduleDetection": "force"
+    }
+  }
+  ```
+</ParamField>
+
+## Modules
+
+### module
+
+<ParamField path="module" type="string" default="CommonJS">
+  Specify what module code is generated.
+  
+  **Valid values:** `CommonJS`, `AMD`, `UMD`, `System`, `ES6`/`ES2015`, `ES2020`, `ES2022`, `ESNext`, `Node16`, `Node18`, `Node20`, `NodeNext`, `Preserve`, `None`
+  
+  **Command line:**
+  ```bash
+  tsc --module ESNext
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "module": "ESNext"
+    }
+  }
+  ```
+</ParamField>
+
+### moduleResolution
+
+<ParamField path="moduleResolution" type="string" default="node10">
+  Specify how TypeScript looks up a file from a given module specifier.
+  
+  **Valid values:**
+  - `node10` / `node` - Classic Node.js resolution
+  - `node16` - Node.js 16+ with package exports
+  - `nodenext` - Latest Node.js resolution
+  - `bundler` - Bundler-style resolution
+  - `classic` - TypeScript pre-1.6 (deprecated)
+  
+  **Command line:**
+  ```bash
+  tsc --moduleResolution bundler
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "moduleResolution": "bundler"
+    }
+  }
+  ```
+</ParamField>
+
+### baseUrl
+
+<ParamField path="baseUrl" type="string">
+  Specify the base directory to resolve non-relative module names.
+  
+  **Command line:**
+  ```bash
+  tsc --baseUrl ./src
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "baseUrl": "./src"
+    }
+  }
+  ```
+</ParamField>
+
+### paths
+
+<ParamField path="paths" type="object">
+  Specify a set of entries that re-map imports to additional lookup locations.
+  
+  **tsconfig.json only:**
+  ```json
+  {
+    "compilerOptions": {
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["src/*"],
+        "@components/*": ["src/components/*"],
+        "@utils/*": ["src/utils/*"]
+      }
+    }
+  }
+  ```
+</ParamField>
+
+### rootDirs
+
+<ParamField path="rootDirs" type="string[]">
+  Allow multiple folders to be treated as one when resolving modules.
+  
+  **tsconfig.json only:**
+  ```json
+  {
+    "compilerOptions": {
+      "rootDirs": ["src/views", "generated/templates/views"]
+    }
+  }
+  ```
+</ParamField>
+
+### typeRoots
+
+<ParamField path="typeRoots" type="string[]">
+  Specify multiple folders that act like ./node_modules/@types.
+  
+  **Command line:**
+  ```bash
+  tsc --typeRoots ./typings,./vendor/types
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "typeRoots": ["./typings", "./vendor/types"]
+    }
+  }
+  ```
+</ParamField>
+
+### types
+
+<ParamField path="types" type="string[]">
+  Specify type package names to be included without being referenced in a source file.
+  
+  **Command line:**
+  ```bash
+  tsc --types node,jest
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "types": ["node", "jest"]
+    }
+  }
+  ```
+</ParamField>
+
+### resolveJsonModule
+
+<ParamField path="resolveJsonModule" type="boolean" default="false">
+  Enable importing .json files.
+  
+  **Command line:**
+  ```bash
+  tsc --resolveJsonModule
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "resolveJsonModule": true
+    }
+  }
+  ```
+  
+  **Example:**
+  ```typescript
+  import config from './config.json';
+  console.log(config.version);
+  ```
+</ParamField>
+
+### noResolve
+
+<ParamField path="noResolve" type="boolean" default="false">
+  Disallow imports, requires, or references from expanding the number of files TypeScript should add to a project.
+  
+  **Command line:**
+  ```bash
+  tsc --noResolve
+  ```
+</ParamField>
+
+### moduleSuffixes
+
+<ParamField path="moduleSuffixes" type="string[]">
+  List of file name suffixes to search when resolving a module.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "moduleSuffixes": [".ios", ".native", ""]
+    }
+  }
+  ```
+</ParamField>
+
+### allowImportingTsExtensions
+
+<ParamField path="allowImportingTsExtensions" type="boolean" default="false">
+  Allow imports to include TypeScript file extensions. Requires --moduleResolution bundler and either --noEmit or --emitDeclarationOnly.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "moduleResolution": "bundler",
+      "allowImportingTsExtensions": true,
+      "noEmit": true
+    }
+  }
+  ```
+</ParamField>
+
+### rewriteRelativeImportExtensions
+
+<ParamField path="rewriteRelativeImportExtensions" type="boolean" default="false">
+  Rewrite .ts, .tsx, .mts, and .cts file extensions in relative import paths to their JavaScript equivalent in output files.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "rewriteRelativeImportExtensions": true
+    }
+  }
+  ```
+</ParamField>
+
+### resolvePackageJsonExports
+
+<ParamField path="resolvePackageJsonExports" type="boolean" default="true for node16/nodenext/bundler">
+  Use the package.json 'exports' field when resolving package imports.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "resolvePackageJsonExports": true
+    }
+  }
+  ```
+</ParamField>
+
+### resolvePackageJsonImports
+
+<ParamField path="resolvePackageJsonImports" type="boolean" default="true for node16/nodenext/bundler">
+  Use the package.json 'imports' field when resolving imports.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "resolvePackageJsonImports": true
+    }
+  }
+  ```
+</ParamField>
+
+### customConditions
+
+<ParamField path="customConditions" type="string[]">
+  Conditions to set in addition to the resolver-specific defaults when resolving imports.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "customConditions": ["development"]
+    }
+  }
+  ```
+</ParamField>
+
+### noUncheckedSideEffectImports
+
+<ParamField path="noUncheckedSideEffectImports" type="boolean" default="true">
+  Check side effect imports.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "noUncheckedSideEffectImports": true
+    }
+  }
+  ```
+</ParamField>
+
+## Emit
+
+### declaration
+
+<ParamField path="declaration" type="boolean" default="false">
+  Generate .d.ts files from TypeScript and JavaScript files in your project.
+  
+  **Command line:**
+  ```bash
+  tsc --declaration
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "declaration": true
+    }
+  }
+  ```
+</ParamField>
+
+### declarationMap
+
+<ParamField path="declarationMap" type="boolean" default="false">
+  Create sourcemaps for d.ts files.
+  
+  **Command line:**
+  ```bash
+  tsc --declarationMap
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "declaration": true,
+      "declarationMap": true
+    }
+  }
+  ```
+</ParamField>
+
+### emitDeclarationOnly
+
+<ParamField path="emitDeclarationOnly" type="boolean" default="false">
+  Only output d.ts files and not JavaScript files.
+  
+  **Command line:**
+  ```bash
+  tsc --emitDeclarationOnly
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "declaration": true,
+      "emitDeclarationOnly": true
+    }
+  }
+  ```
+</ParamField>
+
+### sourceMap
+
+<ParamField path="sourceMap" type="boolean" default="false">
+  Create source map files for emitted JavaScript files.
+  
+  **Command line:**
+  ```bash
+  tsc --sourceMap
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "sourceMap": true
+    }
+  }
+  ```
+</ParamField>
+
+### inlineSourceMap
+
+<ParamField path="inlineSourceMap" type="boolean" default="false">
+  Include sourcemap files inside the emitted JavaScript.
+  
+  **Command line:**
+  ```bash
+  tsc --inlineSourceMap
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "inlineSourceMap": true
+    }
+  }
+  ```
+</ParamField>
+
+### outFile
+
+<ParamField path="outFile" type="string">
+  Specify a file that bundles all outputs into one JavaScript file.
+  
+  **Command line:**
+  ```bash
+  tsc --outFile bundle.js
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "module": "amd",
+      "outFile": "./dist/bundle.js"
+    }
+  }
+  ```
+</ParamField>
+
+### outDir
+
+<ParamField path="outDir" type="string">
+  Specify an output folder for all emitted files.
+  
+  **Command line:**
+  ```bash
+  tsc --outDir dist
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "outDir": "./dist"
+    }
+  }
+  ```
+</ParamField>
+
+### removeComments
+
+<ParamField path="removeComments" type="boolean" default="false">
+  Disable emitting comments.
+  
+  **Command line:**
+  ```bash
+  tsc --removeComments
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "removeComments": true
+    }
+  }
+  ```
+</ParamField>
+
+### noEmit
+
+<ParamField path="noEmit" type="boolean" default="false">
+  Disable emitting files from a compilation.
+  
+  **Command line:**
+  ```bash
+  tsc --noEmit
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "noEmit": true
+    }
+  }
+  ```
+</ParamField>
+
+### importHelpers
+
+<ParamField path="importHelpers" type="boolean" default="false">
+  Allow importing helper functions from tslib once per project, instead of including them per-file.
+  
+  **Command line:**
+  ```bash
+  tsc --importHelpers
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "importHelpers": true
+    }
+  }
+  ```
+</ParamField>
+
+### downlevelIteration
+
+<ParamField path="downlevelIteration" type="boolean" default="false">
+  Emit more compliant, but verbose and less performant JavaScript for iteration.
+  
+  **Command line:**
+  ```bash
+  tsc --downlevelIteration
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "downlevelIteration": true
+    }
+  }
+  ```
+</ParamField>
+
+### sourceRoot
+
+<ParamField path="sourceRoot" type="string">
+  Specify the root path for debuggers to find the reference source code.
+  
+  **Command line:**
+  ```bash
+  tsc --sourceRoot https://example.com/src
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "sourceRoot": "https://example.com/src"
+    }
+  }
+  ```
+</ParamField>
+
+### mapRoot
+
+<ParamField path="mapRoot" type="string">
+  Specify the location where debugger should locate map files instead of generated locations.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "mapRoot": "https://example.com/maps"
+    }
+  }
+  ```
+</ParamField>
+
+### inlineSources
+
+<ParamField path="inlineSources" type="boolean" default="false">
+  Include source code in the sourcemaps inside the emitted JavaScript.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "sourceMap": true,
+      "inlineSources": true
+    }
+  }
+  ```
+</ParamField>
+
+### emitBOM
+
+<ParamField path="emitBOM" type="boolean" default="false">
+  Emit a UTF-8 Byte Order Mark (BOM) in the beginning of output files.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "emitBOM": true
+    }
+  }
+  ```
+</ParamField>
+
+### newLine
+
+<ParamField path="newLine" type="string" default="lf">
+  Set the newline character for emitting files.
+  
+  **Valid values:** `crlf`, `lf`
+  
+  **Command line:**
+  ```bash
+  tsc --newLine lf
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "newLine": "lf"
+    }
+  }
+  ```
+</ParamField>
+
+### stripInternal
+
+<ParamField path="stripInternal" type="boolean" default="false">
+  Disable emitting declarations that have @internal in their JSDoc comments.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "stripInternal": true
+    }
+  }
+  ```
+</ParamField>
+
+### noEmitHelpers
+
+<ParamField path="noEmitHelpers" type="boolean" default="false">
+  Disable generating custom helper functions like __extends in compiled output.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "noEmitHelpers": true
+    }
+  }
+  ```
+</ParamField>
+
+### noEmitOnError
+
+<ParamField path="noEmitOnError" type="boolean" default="false">
+  Disable emitting files if any type checking errors are reported.
+  
+  **Command line:**
+  ```bash
+  tsc --noEmitOnError
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "noEmitOnError": true
+    }
+  }
+  ```
+</ParamField>
+
+### preserveConstEnums
+
+<ParamField path="preserveConstEnums" type="boolean" default="false">
+  Disable erasing const enum declarations in generated code.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "preserveConstEnums": true
+    }
+  }
+  ```
+</ParamField>
+
+### declarationDir
+
+<ParamField path="declarationDir" type="string">
+  Specify the output directory for generated declaration files.
+  
+  **Command line:**
+  ```bash
+  tsc --declarationDir types
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "declaration": true,
+      "declarationDir": "./types"
+    }
+  }
+  ```
+</ParamField>
+
+## Type Checking
+
+### strict
+
+<ParamField path="strict" type="boolean" default="true">
+  Enable all strict type-checking options.
+  
+  Enables:
+  - `noImplicitAny`
+  - `strictNullChecks`
+  - `strictFunctionTypes`
+  - `strictBindCallApply`
+  - `strictPropertyInitialization`
+  - `noImplicitThis`
+  - `useUnknownInCatchVariables`
+  - `alwaysStrict`
+  - `strictBuiltinIteratorReturn`
+  
+  **Command line:**
+  ```bash
+  tsc --strict
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "strict": true
+    }
+  }
+  ```
+</ParamField>
+
+### noImplicitAny
+
+<ParamField path="noImplicitAny" type="boolean" default="true if strict">
+  Enable error reporting for expressions and declarations with an implied 'any' type.
+  
+  **Command line:**
+  ```bash
+  tsc --noImplicitAny
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "noImplicitAny": true
+    }
+  }
+  ```
+  
+  **Example error:**
+  ```typescript
+  // Error: Parameter 'x' implicitly has an 'any' type
+  function add(x, y) {
+    return x + y;
+  }
+  ```
+</ParamField>
+
+### strictNullChecks
+
+<ParamField path="strictNullChecks" type="boolean" default="true if strict">
+  When type checking, take into account null and undefined.
+  
+  **Command line:**
+  ```bash
+  tsc --strictNullChecks
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "strictNullChecks": true
+    }
+  }
+  ```
+  
+  **Example error:**
+  ```typescript
+  let x: string = null; // Error: Type 'null' is not assignable to type 'string'
+  let y: string | null = null; // OK
+  ```
+</ParamField>
+
+### strictFunctionTypes
+
+<ParamField path="strictFunctionTypes" type="boolean" default="true if strict">
+  When assigning functions, check to ensure parameters and the return values are subtype-compatible.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "strictFunctionTypes": true
+    }
+  }
+  ```
+</ParamField>
+
+### strictBindCallApply
+
+<ParamField path="strictBindCallApply" type="boolean" default="true if strict">
+  Check that the arguments for bind, call, and apply methods match the original function.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "strictBindCallApply": true
+    }
+  }
+  ```
+</ParamField>
+
+### strictPropertyInitialization
+
+<ParamField path="strictPropertyInitialization" type="boolean" default="true if strict">
+  Check for class properties that are declared but not set in the constructor.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "strictPropertyInitialization": true
+    }
+  }
+  ```
+  
+  **Example error:**
+  ```typescript
+  class User {
+    name: string; // Error: Property 'name' has no initializer
+  }
+  ```
+</ParamField>
+
+### noImplicitThis
+
+<ParamField path="noImplicitThis" type="boolean" default="true if strict">
+  Enable error reporting when 'this' is given the type 'any'.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "noImplicitThis": true
+    }
+  }
+  ```
+</ParamField>
+
+### useUnknownInCatchVariables
+
+<ParamField path="useUnknownInCatchVariables" type="boolean" default="true if strict">
+  Default catch clause variables as 'unknown' instead of 'any'.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "useUnknownInCatchVariables": true
+    }
+  }
+  ```
+  
+  **Example:**
+  ```typescript
+  try {
+    // ...
+  } catch (error) {
+    // error is 'unknown', not 'any'
+    if (error instanceof Error) {
+      console.log(error.message);
+    }
+  }
+  ```
+</ParamField>
+
+### alwaysStrict
+
+<ParamField path="alwaysStrict" type="boolean" default="true">
+  Ensure 'use strict' is always emitted.
+  
+  **Command line:**
+  ```bash
+  tsc --alwaysStrict
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "alwaysStrict": true
+    }
+  }
+  ```
+</ParamField>
+
+### strictBuiltinIteratorReturn
+
+<ParamField path="strictBuiltinIteratorReturn" type="boolean" default="true if strict">
+  Built-in iterators are instantiated with a TReturn type of undefined instead of any.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "strictBuiltinIteratorReturn": true
+    }
+  }
+  ```
+</ParamField>
+
+### noUnusedLocals
+
+<ParamField path="noUnusedLocals" type="boolean" default="false">
+  Enable error reporting when local variables aren't read.
+  
+  **Command line:**
+  ```bash
+  tsc --noUnusedLocals
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "noUnusedLocals": true
+    }
+  }
+  ```
+</ParamField>
+
+### noUnusedParameters
+
+<ParamField path="noUnusedParameters" type="boolean" default="false">
+  Raise an error when a function parameter isn't read.
+  
+  **Command line:**
+  ```bash
+  tsc --noUnusedParameters
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "noUnusedParameters": true
+    }
+  }
+  ```
+</ParamField>
+
+### exactOptionalPropertyTypes
+
+<ParamField path="exactOptionalPropertyTypes" type="boolean" default="false">
+  Interpret optional property types as written, rather than adding undefined.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "exactOptionalPropertyTypes": true
+    }
+  }
+  ```
+</ParamField>
+
+### noImplicitReturns
+
+<ParamField path="noImplicitReturns" type="boolean" default="false">
+  Enable error reporting for codepaths that do not explicitly return in a function.
+  
+  **Command line:**
+  ```bash
+  tsc --noImplicitReturns
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "noImplicitReturns": true
+    }
+  }
+  ```
+</ParamField>
+
+### noFallthroughCasesInSwitch
+
+<ParamField path="noFallthroughCasesInSwitch" type="boolean" default="false">
+  Enable error reporting for fallthrough cases in switch statements.
+  
+  **Command line:**
+  ```bash
+  tsc --noFallthroughCasesInSwitch
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "noFallthroughCasesInSwitch": true
+    }
+  }
+  ```
+</ParamField>
+
+### noUncheckedIndexedAccess
+
+<ParamField path="noUncheckedIndexedAccess" type="boolean" default="false">
+  Add undefined to a type when accessed using an index.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "noUncheckedIndexedAccess": true
+    }
+  }
+  ```
+  
+  **Example:**
+  ```typescript
+  const arr: string[] = ['a', 'b'];
+  const item = arr[0]; // Type: string | undefined
+  ```
+</ParamField>
+
+### noImplicitOverride
+
+<ParamField path="noImplicitOverride" type="boolean" default="false">
+  Ensure overriding members in derived classes are marked with an override modifier.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "noImplicitOverride": true
+    }
+  }
+  ```
+</ParamField>
+
+### noPropertyAccessFromIndexSignature
+
+<ParamField path="noPropertyAccessFromIndexSignature" type="boolean" default="false">
+  Enforces using indexed accessors for keys declared using an indexed type.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "noPropertyAccessFromIndexSignature": true
+    }
+  }
+  ```
+</ParamField>
+
+### allowUnusedLabels
+
+<ParamField path="allowUnusedLabels" type="boolean">
+  Disable error reporting for unused labels.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "allowUnusedLabels": false
+    }
+  }
+  ```
+</ParamField>
+
+### allowUnreachableCode
+
+<ParamField path="allowUnreachableCode" type="boolean">
+  Disable error reporting for unreachable code.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "allowUnreachableCode": false
+    }
+  }
+  ```
+</ParamField>
+
+## Interop Constraints
+
+### isolatedModules
+
+<ParamField path="isolatedModules" type="boolean" default="false">
+  Ensure that each file can be safely transpiled without relying on other imports.
+  
+  **Command line:**
+  ```bash
+  tsc --isolatedModules
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "isolatedModules": true
+    }
+  }
+  ```
+</ParamField>
+
+### verbatimModuleSyntax
+
+<ParamField path="verbatimModuleSyntax" type="boolean" default="false">
+  Do not transform or elide any imports or exports not marked as type-only, ensuring they are written in the output file's format based on the 'module' setting.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "verbatimModuleSyntax": true
+    }
+  }
+  ```
+</ParamField>
+
+### isolatedDeclarations
+
+<ParamField path="isolatedDeclarations" type="boolean" default="false">
+  Require sufficient annotation on exports so other tools can trivially generate declaration files.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "isolatedDeclarations": true
+    }
+  }
+  ```
+</ParamField>
+
+### allowSyntheticDefaultImports
+
+<ParamField path="allowSyntheticDefaultImports" type="boolean" default="true">
+  Allow 'import x from y' when a module doesn't have a default export.
+  
+  **Command line:**
+  ```bash
+  tsc --allowSyntheticDefaultImports
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "allowSyntheticDefaultImports": true
+    }
+  }
+  ```
+</ParamField>
+
+### esModuleInterop
+
+<ParamField path="esModuleInterop" type="boolean" default="true">
+  Emit additional JavaScript to ease support for importing CommonJS modules. This enables allowSyntheticDefaultImports for type compatibility.
+  
+  **Command line:**
+  ```bash
+  tsc --esModuleInterop
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "esModuleInterop": true
+    }
+  }
+  ```
+</ParamField>
+
+### preserveSymlinks
+
+<ParamField path="preserveSymlinks" type="boolean" default="false">
+  Disable resolving symlinks to their realpath. This correlates to the same flag in node.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "preserveSymlinks": true
+    }
+  }
+  ```
+</ParamField>
+
+### forceConsistentCasingInFileNames
+
+<ParamField path="forceConsistentCasingInFileNames" type="boolean" default="true">
+  Ensure that casing is correct in imports.
+  
+  **Command line:**
+  ```bash
+  tsc --forceConsistentCasingInFileNames
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "forceConsistentCasingInFileNames": true
+    }
+  }
+  ```
+</ParamField>
+
+### allowUmdGlobalAccess
+
+<ParamField path="allowUmdGlobalAccess" type="boolean" default="false">
+  Allow accessing UMD globals from modules.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "allowUmdGlobalAccess": true
+    }
+  }
+  ```
+</ParamField>
+
+## JavaScript Support
+
+### allowJs
+
+<ParamField path="allowJs" type="boolean" default="false">
+  Allow JavaScript files to be a part of your program. Use the checkJs option to get errors from these files.
+  
+  **Command line:**
+  ```bash
+  tsc --allowJs
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "allowJs": true
+    }
+  }
+  ```
+</ParamField>
+
+### checkJs
+
+<ParamField path="checkJs" type="boolean" default="false">
+  Enable error reporting in type-checked JavaScript files.
+  
+  **Command line:**
+  ```bash
+  tsc --checkJs
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "allowJs": true,
+      "checkJs": true
+    }
+  }
+  ```
+</ParamField>
+
+### maxNodeModuleJsDepth
+
+<ParamField path="maxNodeModuleJsDepth" type="number" default="0">
+  Specify the maximum folder depth used for checking JavaScript files from node_modules. Only applicable with allowJs.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "allowJs": true,
+      "maxNodeModuleJsDepth": 2
+    }
+  }
+  ```
+</ParamField>
+
+## Projects
+
+### incremental
+
+<ParamField path="incremental" type="boolean" default="false">
+  Save .tsbuildinfo files to allow for incremental compilation of projects.
+  
+  **Command line:**
+  ```bash
+  tsc --incremental
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "incremental": true
+    }
+  }
+  ```
+</ParamField>
+
+### composite
+
+<ParamField path="composite" type="boolean" default="false">
+  Enable constraints that allow a TypeScript project to be used with project references.
+  
+  **tsconfig.json only:**
+  ```json
+  {
+    "compilerOptions": {
+      "composite": true,
+      "declaration": true
+    }
+  }
+  ```
+</ParamField>
+
+### tsBuildInfoFile
+
+<ParamField path="tsBuildInfoFile" type="string" default=".tsbuildinfo">
+  Specify the path to .tsbuildinfo incremental compilation file.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "incremental": true,
+      "tsBuildInfoFile": "./.cache/tsbuildinfo"
+    }
+  }
+  ```
+</ParamField>
+
+### disableSourceOfProjectReferenceRedirect
+
+<ParamField path="disableSourceOfProjectReferenceRedirect" type="boolean" default="false">
+  Disable preferring source files instead of declaration files when referencing composite projects.
+  
+  **tsconfig.json only:**
+  ```json
+  {
+    "compilerOptions": {
+      "disableSourceOfProjectReferenceRedirect": true
+    }
+  }
+  ```
+</ParamField>
+
+### disableSolutionSearching
+
+<ParamField path="disableSolutionSearching" type="boolean" default="false">
+  Opt a project out of multi-project reference checking when editing.
+  
+  **tsconfig.json only:**
+  ```json
+  {
+    "compilerOptions": {
+      "disableSolutionSearching": true
+    }
+  }
+  ```
+</ParamField>
+
+### disableReferencedProjectLoad
+
+<ParamField path="disableReferencedProjectLoad" type="boolean" default="false">
+  Reduce the number of projects loaded automatically by TypeScript.
+  
+  **tsconfig.json only:**
+  ```json
+  {
+    "compilerOptions": {
+      "disableReferencedProjectLoad": true
+    }
+  }
+  ```
+</ParamField>
+
+## Completeness
+
+### skipDefaultLibCheck
+
+<ParamField path="skipDefaultLibCheck" type="boolean" default="false">
+  Skip type checking .d.ts files that are included with TypeScript.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "skipDefaultLibCheck": true
+    }
+  }
+  ```
+</ParamField>
+
+### skipLibCheck
+
+<ParamField path="skipLibCheck" type="boolean" default="false">
+  Skip type checking all .d.ts files.
+  
+  **Command line:**
+  ```bash
+  tsc --skipLibCheck
+  ```
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "skipLibCheck": true
+    }
+  }
+  ```
+</ParamField>
+
+## Editor Support
+
+### disableSizeLimit
+
+<ParamField path="disableSizeLimit" type="boolean" default="false">
+  Remove the 20mb cap on total source code size for JavaScript files in the TypeScript language server.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "disableSizeLimit": true
+    }
+  }
+  ```
+</ParamField>
+
+### plugins
+
+<ParamField path="plugins" type="array">
+  Specify a list of language service plugins to include.
+  
+  **tsconfig.json only:**
+  ```json
+  {
+    "compilerOptions": {
+      "plugins": [
+        {
+          "name": "typescript-styled-plugin"
+        },
+        {
+          "name": "typescript-plugin-css-modules"
+        }
+      ]
+    }
+  }
+  ```
+</ParamField>
+
+## Watch and Build Modes
+
+### assumeChangesOnlyAffectDirectDependencies
+
+<ParamField path="assumeChangesOnlyAffectDirectDependencies" type="boolean" default="false">
+  Have recompiles in projects that use incremental and watch mode assume that changes within a file will only affect files directly depending on it.
+  
+  **tsconfig.json:**
+  ```json
+  {
+    "compilerOptions": {
+      "assumeChangesOnlyAffectDirectDependencies": true
+    }
+  }
+  ```
+</ParamField>
+
+## Real-World Configuration Examples
+
+### Strict Modern TypeScript
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true
+  }
+}
+```
+
+### Node.js Project
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "Node16",
+    "lib": ["ES2022"],
+    "moduleResolution": "Node16",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "types": ["node"]
+  }
+}
+```
+
+### React Project
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+```
+
+### Library Project
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ES2020"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "composite": true,
+    "removeComments": true
+  }
+}
+```
+
+## Source Code Reference
+
+All compiler options are defined in:
+- Option definitions: [`src/compiler/commandLineParser.ts:637-1688`](https://github.com/microsoft/TypeScript/blob/main/src/compiler/commandLineParser.ts#L637-L1688)
+- Option parsing: [`src/compiler/commandLineParser.ts:1958-2037`](https://github.com/microsoft/TypeScript/blob/main/src/compiler/commandLineParser.ts#L1958-L2037)
+- Type definitions: [`src/compiler/types.ts`](https://github.com/microsoft/TypeScript/blob/main/src/compiler/types.ts)
+
+<Note>
+  This reference is extracted from the actual TypeScript compiler source code and reflects the current implementation.
+</Note>

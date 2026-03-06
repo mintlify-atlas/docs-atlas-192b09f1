@@ -1,0 +1,559 @@
+---
+title: 'Decorators'
+description: 'Modern and legacy decorators in TypeScript'
+---
+
+# Decorators
+
+Decorators provide a way to add annotations and meta-programming syntax for class declarations and members. TypeScript supports both the modern Stage 3 decorators and legacy experimental decorators.
+
+## Overview
+
+Decorators are special declarations that can be attached to:
+- Classes
+- Methods
+- Accessors (getters/setters)
+- Properties
+- Parameters
+
+They use the `@expression` syntax, where `expression` evaluates to a function that will be called at runtime with information about the decorated declaration.
+
+## Stage 3 Decorators (Recommended)
+
+Stage 3 decorators are the modern, standardized version aligned with the TC39 proposal. They are the default in TypeScript 5.0+.
+
+### Enabling Stage 3 Decorators
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "experimentalDecorators": false  // default in TS 5.0+
+  }
+}
+```
+
+<Info>
+  Stage 3 decorators are enabled by default when `target` is ESNext or ES2022+. No special flag is required.
+</Info>
+
+### Class Decorators
+
+Class decorators are applied to class declarations and can observe, modify, or replace a class definition.
+
+```typescript
+function sealed(constructor: Function) {
+  Object.seal(constructor);
+  Object.seal(constructor.prototype);
+}
+
+@sealed
+class BugReport {
+  type = "report";
+  title: string;
+
+  constructor(title: string) {
+    this.title = title;
+  }
+}
+```
+
+**Class Decorator with Parameters:**
+
+```typescript
+function logged(logLevel: "info" | "debug" | "warn") {
+  return function (target: Function) {
+    console.log(`[${logLevel}] Creating instance of ${target.name}`);
+  };
+}
+
+@logged("info")
+class Service {
+  constructor() {
+    console.log("Service initialized");
+  }
+}
+```
+
+### Method Decorators
+
+Method decorators are applied to method declarations and can observe, modify, or replace a method definition.
+
+```typescript
+function log(
+  target: any,
+  propertyKey: string,
+  descriptor: PropertyDescriptor
+) {
+  const originalMethod = descriptor.value;
+
+  descriptor.value = function (...args: any[]) {
+    console.log(`Calling ${propertyKey} with:`, args);
+    const result = originalMethod.apply(this, args);
+    console.log(`Result:`, result);
+    return result;
+  };
+
+  return descriptor;
+}
+
+class Calculator {
+  @log
+  add(a: number, b: number): number {
+    return a + b;
+  }
+}
+
+const calc = new Calculator();
+calc.add(2, 3);
+// Logs: Calling add with: [2, 3]
+// Logs: Result: 5
+```
+
+### Property Decorators
+
+Property decorators can observe property declarations on a class.
+
+```typescript
+function readonly(target: any, propertyKey: string) {
+  const descriptor: PropertyDescriptor = {
+    writable: false,
+  };
+  return descriptor;
+}
+
+class Person {
+  @readonly
+  name: string = "John";
+}
+
+const person = new Person();
+// person.name = "Jane"; // Error: Cannot assign to read only property
+```
+
+### Accessor Decorators
+
+Accessor decorators are applied to getters or setters.
+
+```typescript
+function configurable(value: boolean) {
+  return function (
+    target: any,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ) {
+    descriptor.configurable = value;
+    return descriptor;
+  };
+}
+
+class Point {
+  private _x: number = 0;
+  private _y: number = 0;
+
+  @configurable(false)
+  get x() {
+    return this._x;
+  }
+
+  @configurable(false)
+  get y() {
+    return this._y;
+  }
+}
+```
+
+### Auto-Accessor Decorators
+
+Stage 3 decorators introduce the `accessor` keyword for auto-accessors:
+
+```typescript
+class MyClass {
+  @logged
+  accessor property = 1;
+}
+
+// Equivalent to:
+class MyClass {
+  #property = 1;
+  
+  get property() {
+    return this.#property;
+  }
+  
+  set property(value) {
+    this.#property = value;
+  }
+}
+```
+
+### Parameter Decorators
+
+Parameter decorators are applied to function parameters.
+
+```typescript
+function required(target: any, propertyKey: string, parameterIndex: number) {
+  const existingRequiredParameters: number[] =
+    Reflect.getOwnMetadata("required", target, propertyKey) || [];
+  existingRequiredParameters.push(parameterIndex);
+  Reflect.defineMetadata(
+    "required",
+    existingRequiredParameters,
+    target,
+    propertyKey
+  );
+}
+
+class UserService {
+  createUser(@required name: string, age?: number) {
+    console.log(`Creating user: ${name}, ${age}`);
+  }
+}
+```
+
+## Legacy Decorators (Experimental)
+
+Legacy decorators use the older experimental syntax. They are still widely used in frameworks like Angular.
+
+### Enabling Legacy Decorators
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2015",
+    "experimentalDecorators": true
+  }
+}
+```
+
+<Warning>
+  Legacy decorators are incompatible with Stage 3 decorators. You must choose one or the other.
+</Warning>
+
+### Legacy vs. Stage 3 Differences
+
+<Tabs>
+  <Tab title="Execution Order">
+    **Legacy decorators:**
+    - Evaluate bottom-to-top
+    - Execute top-to-bottom
+    
+    **Stage 3 decorators:**
+    - Consistent evaluation and execution order
+    - More predictable behavior
+  </Tab>
+  
+  <Tab title="Decorator Context">
+    **Legacy decorators:**
+    - Receive target, property key, descriptor
+    - Limited metadata
+    
+    **Stage 3 decorators:**
+    - Receive a context object with metadata
+    - Access to more information about the decorated element
+  </Tab>
+  
+  <Tab title="Return Values">
+    **Legacy decorators:**
+    - Can return undefined or a descriptor
+    - Behavior varies by decorator type
+    
+    **Stage 3 decorators:**
+    - Consistent return value semantics
+    - Can return replacement or undefined
+  </Tab>
+</Tabs>
+
+## Decorator Composition
+
+Multiple decorators can be applied to a single declaration:
+
+```typescript
+function first() {
+  console.log("first(): factory evaluated");
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    console.log("first(): called");
+  };
+}
+
+function second() {
+  console.log("second(): factory evaluated");
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    console.log("second(): called");
+  };
+}
+
+class ExampleClass {
+  @first()
+  @second()
+  method() {}
+}
+
+// Output:
+// first(): factory evaluated
+// second(): factory evaluated
+// second(): called
+// first(): called
+```
+
+<Note>
+  Decorators are evaluated top-to-bottom, but executed bottom-to-top (like function composition).
+</Note>
+
+## Decorator Metadata
+
+With `emitDecoratorMetadata` enabled, TypeScript emits design-time type information for decorators.
+
+### Enabling Metadata
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  }
+}
+```
+
+### Using Metadata
+
+```typescript
+import "reflect-metadata";
+
+function logType(target: any, key: string) {
+  const type = Reflect.getMetadata("design:type", target, key);
+  console.log(`${key} type: ${type.name}`);
+}
+
+class Demo {
+  @logType
+  public attr: string = "test";
+}
+
+// Logs: attr type: String
+```
+
+### Metadata Keys
+
+TypeScript automatically emits three types of metadata:
+
+<ResponseField name="design:type">
+  The type of the property or parameter
+</ResponseField>
+
+<ResponseField name="design:paramtypes">
+  The types of function parameters
+</ResponseField>
+
+<ResponseField name="design:returntype">
+  The return type of a function
+</ResponseField>
+
+## Real-World Example: Dependency Injection
+
+```typescript
+import "reflect-metadata";
+
+const INJECTABLE_KEY = Symbol("injectable");
+const INJECT_KEY = Symbol("inject");
+
+function Injectable() {
+  return function (target: Function) {
+    Reflect.defineMetadata(INJECTABLE_KEY, true, target);
+  };
+}
+
+function Inject(token: any) {
+  return function (target: any, propertyKey: string, parameterIndex: number) {
+    const existingInjections =
+      Reflect.getOwnMetadata(INJECT_KEY, target, propertyKey) || [];
+    existingInjections.push({ index: parameterIndex, token });
+    Reflect.defineMetadata(INJECT_KEY, existingInjections, target, propertyKey);
+  };
+}
+
+class Container {
+  private services = new Map();
+
+  register(token: any, service: any) {
+    this.services.set(token, service);
+  }
+
+  resolve<T>(target: new (...args: any[]) => T): T {
+    const tokens =
+      Reflect.getMetadata("design:paramtypes", target) || [];
+    const injections: any[] = tokens.map((token: any) => {
+      return this.services.get(token);
+    });
+    return new target(...injections);
+  }
+}
+
+@Injectable()
+class Database {
+  connect() {
+    console.log("Database connected");
+  }
+}
+
+@Injectable()
+class UserService {
+  constructor(private db: Database) {}
+
+  getUsers() {
+    this.db.connect();
+    return ["User1", "User2"];
+  }
+}
+
+// Usage
+const container = new Container();
+container.register(Database, new Database());
+const userService = container.resolve(UserService);
+userService.getUsers();
+```
+
+## Common Decorator Patterns
+
+### Memoization Decorator
+
+```typescript
+function memoize(
+  target: any,
+  propertyKey: string,
+  descriptor: PropertyDescriptor
+) {
+  const originalMethod = descriptor.value;
+  const cache = new Map();
+
+  descriptor.value = function (...args: any[]) {
+    const key = JSON.stringify(args);
+    if (cache.has(key)) {
+      return cache.get(key);
+    }
+    const result = originalMethod.apply(this, args);
+    cache.set(key, result);
+    return result;
+  };
+
+  return descriptor;
+}
+
+class MathOperations {
+  @memoize
+  fibonacci(n: number): number {
+    if (n <= 1) return n;
+    return this.fibonacci(n - 1) + this.fibonacci(n - 2);
+  }
+}
+```
+
+### Validation Decorator
+
+```typescript
+function validate(
+  target: any,
+  propertyKey: string,
+  descriptor: PropertyDescriptor
+) {
+  const originalMethod = descriptor.value;
+
+  descriptor.value = function (...args: any[]) {
+    if (args.some((arg) => arg == null)) {
+      throw new Error(`Null or undefined argument in ${propertyKey}`);
+    }
+    return originalMethod.apply(this, args);
+  };
+
+  return descriptor;
+}
+
+class DataService {
+  @validate
+  processData(data: string, options: object) {
+    return { data, options };
+  }
+}
+```
+
+### Timing Decorator
+
+```typescript
+function timing(
+  target: any,
+  propertyKey: string,
+  descriptor: PropertyDescriptor
+) {
+  const originalMethod = descriptor.value;
+
+  descriptor.value = async function (...args: any[]) {
+    const start = performance.now();
+    const result = await originalMethod.apply(this, args);
+    const end = performance.now();
+    console.log(`${propertyKey} took ${(end - start).toFixed(2)}ms`);
+    return result;
+  };
+
+  return descriptor;
+}
+
+class ApiService {
+  @timing
+  async fetchData(url: string) {
+    const response = await fetch(url);
+    return response.json();
+  }
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Stage 3 for New Projects" icon="star">
+    Prefer modern decorators for better standardization
+  </Card>
+  <Card title="Keep Decorators Simple" icon="minimize">
+    Each decorator should have a single, clear purpose
+  </Card>
+  <Card title="Document Side Effects" icon="file-lines">
+    Clearly document any runtime behavior changes
+  </Card>
+  <Card title="Type Safety" icon="shield">
+    Use proper TypeScript types in decorator implementations
+  </Card>
+</CardGroup>
+
+## Migration from Legacy to Stage 3
+
+<Steps>
+  <Step title="Update tsconfig.json">
+    Remove or set `experimentalDecorators: false`
+  </Step>
+  
+  <Step title="Update decorator signatures">
+    Stage 3 decorators have different signatures
+  </Step>
+  
+  <Step title="Update decorator composition">
+    Review execution order assumptions
+  </Step>
+  
+  <Step title="Test thoroughly">
+    Verify behavior matches expectations
+  </Step>
+</Steps>
+
+<Warning>
+  Popular frameworks like Angular still use legacy decorators. Check your dependencies before migrating.
+</Warning>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Mixins" icon="blender" href="/advanced/mixins">
+    Combine decorators with mixin patterns
+  </Card>
+  <Card title="Compiler Options" icon="gear" href="/config/compiler-options-reference">
+    Configure decorator-related options
+  </Card>
+</CardGroup>

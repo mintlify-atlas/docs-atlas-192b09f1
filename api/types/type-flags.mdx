@@ -1,0 +1,351 @@
+---
+title: TypeFlags
+description: Flags used to classify types in the TypeScript type system
+---
+
+The `TypeFlags` enum contains bit flags that classify types in the TypeScript type system. Every `Type` object has a `flags` property containing a combination of these flags.
+
+```typescript
+export const enum TypeFlags {
+  Any = 1 << 0,
+  Unknown = 1 << 1,
+  // ... many more flags
+}
+
+interface Type {
+  flags: TypeFlags;
+  // ...
+}
+```
+
+## Primitive Type Flags
+
+### Basic Types
+
+| Flag | Description |
+|------|-------------|
+| `Any` | `any` type |
+| `Unknown` | `unknown` type |
+| `Undefined` | `undefined` type |
+| `Null` | `null` type |
+| `Void` | `void` type |
+| `String` | `string` type |
+| `Number` | `number` type |
+| `BigInt` | `bigint` type |
+| `Boolean` | `boolean` type |
+| `ESSymbol` | `symbol` type |
+| `Never` | `never` type |
+
+### Literal Types
+
+| Flag | Description |
+|------|-------------|
+| `StringLiteral` | String literal type (e.g., `"hello"`) |
+| `NumberLiteral` | Number literal type (e.g., `42`) |
+| `BigIntLiteral` | BigInt literal type (e.g., `100n`) |
+| `BooleanLiteral` | Boolean literal type (`true` or `false`) |
+| `UniqueESSymbol` | Unique symbol type |
+| `EnumLiteral` | Enum member literal |
+| `Enum` | Computed enum member value |
+
+## Complex Type Flags
+
+### Object and Structure Types
+
+| Flag | Description |
+|------|-------------|
+| `Object` | Object type |
+| `NonPrimitive` | `object` intrinsic type |
+| `TypeParameter` | Type parameter |
+| `Union` | Union type (`T | U`) |
+| `Intersection` | Intersection type (`T & U`) |
+
+### Advanced Types
+
+| Flag | Description |
+|------|-------------|
+| `Index` | `keyof T` type |
+| `IndexedAccess` | `T[K]` type |
+| `Conditional` | Conditional type (`T extends U ? X : Y`) |
+| `Substitution` | Type parameter substitution |
+| `TemplateLiteral` | Template literal type |
+| `StringMapping` | String mapping type (e.g., `Uppercase<T>`) |
+
+## Composite Flags
+
+The enum includes composite flags for common type combinations:
+
+### Nullable Types
+
+```typescript
+Nullable = Undefined | Null
+```
+
+Represents types that are `undefined` or `null`.
+
+### Literal Types
+
+```typescript
+Literal = StringLiteral | NumberLiteral | BigIntLiteral | BooleanLiteral
+```
+
+All literal types.
+
+### Unit Types
+
+```typescript
+Unit = Enum | Literal | UniqueESSymbol | Nullable
+```
+
+Types with a single possible value.
+
+### String-like Types
+
+```typescript
+StringLike = String | StringLiteral | TemplateLiteral | StringMapping
+```
+
+All types that behave like strings.
+
+### Number-like Types
+
+```typescript
+NumberLike = Number | NumberLiteral | Enum
+```
+
+All types that behave like numbers.
+
+### Boolean-like Types
+
+```typescript
+BooleanLike = Boolean | BooleanLiteral
+```
+
+Boolean and boolean literal types.
+
+### Primitive Types
+
+```typescript
+Primitive = 
+  | StringLike 
+  | NumberLike 
+  | BigIntLike 
+  | BooleanLike 
+  | EnumLike 
+  | ESSymbolLike 
+  | VoidLike 
+  | Null
+```
+
+All primitive types.
+
+### Structured Types
+
+```typescript
+StructuredType = Object | Union | Intersection
+```
+
+Types with structure.
+
+### Type Variables
+
+```typescript
+TypeVariable = TypeParameter | IndexedAccess
+```
+
+Types that can be instantiated.
+
+### Instantiable Types
+
+```typescript
+InstantiableNonPrimitive = TypeVariable | Conditional | Substitution
+InstantiablePrimitive = Index | TemplateLiteral | StringMapping
+Instantiable = InstantiableNonPrimitive | InstantiablePrimitive
+```
+
+Types that need instantiation.
+
+### Union and Intersection
+
+```typescript
+UnionOrIntersection = Union | Intersection
+```
+
+Composite types.
+
+### Structured or Instantiable
+
+```typescript
+StructuredOrInstantiable = StructuredType | Instantiable
+```
+
+Complex types requiring special handling.
+
+## Specialized Composite Flags
+
+### Possibly Falsy
+
+```typescript
+DefinitelyFalsy = 
+  | StringLiteral 
+  | NumberLiteral 
+  | BigIntLiteral 
+  | BooleanLiteral 
+  | Void 
+  | Undefined 
+  | Null
+
+PossiblyFalsy = DefinitelyFalsy | String | Number | BigInt | Boolean
+```
+
+Types that can be falsy in JavaScript.
+
+### Narrowable Types
+
+```typescript
+Narrowable = 
+  | Any 
+  | Unknown 
+  | StructuredOrInstantiable 
+  | StringLike 
+  | NumberLike 
+  | BigIntLike 
+  | BooleanLike 
+  | ESSymbol 
+  | UniqueESSymbol 
+  | NonPrimitive
+```
+
+Types where narrowing actually narrows (excludes `null`, `undefined`, `void`, and `never`).
+
+### Definitely Non-Nullable
+
+```typescript
+DefinitelyNonNullable = 
+  | StringLike 
+  | NumberLike 
+  | BigIntLike 
+  | BooleanLike 
+  | EnumLike 
+  | ESSymbolLike 
+  | Object 
+  | NonPrimitive
+```
+
+Types that cannot be `null` or `undefined`.
+
+## Using TypeFlags
+
+### Checking Type Flags
+
+```typescript
+import ts from 'typescript';
+
+function checkType(type: ts.Type, checker: ts.TypeChecker) {
+  if (type.flags & ts.TypeFlags.String) {
+    console.log('String type');
+  }
+  
+  if (type.flags & ts.TypeFlags.StringLiteral) {
+    const literal = type as ts.StringLiteralType;
+    console.log(`String literal: "${literal.value}"`);
+  }
+  
+  if (type.flags & ts.TypeFlags.Union) {
+    const union = type as ts.UnionType;
+    console.log(`Union with ${union.types.length} types`);
+  }
+}
+```
+
+### Testing Multiple Flags
+
+```typescript
+// Check if type is string-like
+if (type.flags & ts.TypeFlags.StringLike) {
+  console.log('String-like type');
+}
+
+// Check if type is a literal
+if (type.flags & ts.TypeFlags.Literal) {
+  console.log('Literal type');
+}
+
+// Check for any or unknown
+if (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) {
+  console.log('Any or unknown type');
+}
+```
+
+### Type Guards
+
+Combine flags with type narrowing:
+
+```typescript
+function isStringLiteralType(type: ts.Type): type is ts.StringLiteralType {
+  return (type.flags & ts.TypeFlags.StringLiteral) !== 0;
+}
+
+function isUnionType(type: ts.Type): type is ts.UnionType {
+  return (type.flags & ts.TypeFlags.Union) !== 0;
+}
+```
+
+## Common Patterns
+
+### Checking for Nullable Types
+
+```typescript
+if (type.flags & ts.TypeFlags.Nullable) {
+  console.log('Type includes null or undefined');
+}
+```
+
+### Distinguishing Primitives
+
+```typescript
+if (type.flags & ts.TypeFlags.Primitive) {
+  console.log('Primitive type');
+}
+```
+
+### Working with Literals
+
+```typescript
+if (type.flags & ts.TypeFlags.Literal) {
+  if (type.flags & ts.TypeFlags.StringLiteral) {
+    const value = (type as ts.StringLiteralType).value;
+    console.log(`String literal: "${value}"`);
+  } else if (type.flags & ts.TypeFlags.NumberLiteral) {
+    const value = (type as ts.NumberLiteralType).value;
+    console.log(`Number literal: ${value}`);
+  }
+}
+```
+
+### Handling Unions and Intersections
+
+```typescript
+if (type.flags & ts.TypeFlags.UnionOrIntersection) {
+  const composite = type as ts.UnionOrIntersectionType;
+  console.log(`Composite type with ${composite.types.length} constituents`);
+}
+```
+
+## Internal Flags
+
+Some flags are marked as internal and used by the compiler:
+
+```typescript
+AnyOrUnknown = Any | Unknown
+StringOrNumberLiteralOrUnique = StringLiteral | NumberLiteral | UniqueESSymbol
+IncludesMask = Any | Unknown | Primitive | Never | Object | Union | Intersection | NonPrimitive | TemplateLiteral | StringMapping
+```
+
+These are typically used during type checking and type construction.
+
+## See Also
+
+- [Node Types](/api/types/node-types) - AST node types
+- [SymbolFlags](/api/types/symbol-flags) - Symbol classification flags
+- [Type Checker API](/api/type-checker) - Working with types

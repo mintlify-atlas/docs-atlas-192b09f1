@@ -1,0 +1,492 @@
+---
+title: "Program API"
+description: "Documentation for the TypeScript Program interface"
+---
+
+## Overview
+
+The `Program` interface is the central component of the TypeScript Compiler API. It represents an immutable collection of source files and compiler options that form a compilation unit.
+
+## Creating a Program
+
+### ts.createProgram()
+
+Creates a new Program instance.
+
+<ParamField path="createProgramOptions" type="CreateProgramOptions">
+  Options object for creating the program
+  
+  <ParamField path="rootNames" type="readonly string[]" required>
+    Array of root file names to include in the program
+  </ParamField>
+  
+  <ParamField path="options" type="CompilerOptions" required>
+    Compiler options for the program
+  </ParamField>
+  
+  <ParamField path="host" type="CompilerHost">
+    Custom compiler host for file system operations
+  </ParamField>
+  
+  <ParamField path="oldProgram" type="Program">
+    Previous program instance for incremental compilation
+  </ParamField>
+  
+  <ParamField path="configFileParsingDiagnostics" type="readonly Diagnostic[]">
+    Diagnostics from parsing the config file
+  </ParamField>
+</ParamField>
+
+**Alternative Signature:**
+
+```typescript
+function createProgram(
+  rootNames: readonly string[],
+  options: CompilerOptions,
+  host?: CompilerHost,
+  oldProgram?: Program,
+  configFileParsingDiagnostics?: readonly Diagnostic[]
+): Program
+```
+
+### Example
+
+```typescript
+import * as ts from 'typescript';
+
+// Using CreateProgramOptions
+const program = ts.createProgram({
+  rootNames: ['./src/index.ts', './src/utils.ts'],
+  options: {
+    target: ts.ScriptTarget.ES2020,
+    module: ts.ModuleKind.ESNext,
+    strict: true,
+    esModuleInterop: true,
+    skipLibCheck: true,
+    declaration: true,
+    outDir: './dist'
+  }
+});
+
+// Using individual parameters
+const program2 = ts.createProgram(
+  ['./src/index.ts'],
+  { target: ts.ScriptTarget.ES2020 }
+);
+```
+
+## Program Interface Methods
+
+### Source File Methods
+
+#### getSourceFiles()
+
+Returns all source files in the program.
+
+<ResponseField name="return" type="readonly SourceFile[]">
+  Array of all source files in the program
+</ResponseField>
+
+```typescript
+const sourceFiles = program.getSourceFiles();
+for (const sourceFile of sourceFiles) {
+  console.log(sourceFile.fileName);
+}
+```
+
+#### getRootFileNames()
+
+Returns the list of root file names passed to `createProgram`.
+
+<ResponseField name="return" type="readonly string[]">
+  Array of root file names
+</ResponseField>
+
+```typescript
+const rootFiles = program.getRootFileNames();
+console.log('Root files:', rootFiles);
+```
+
+#### getSourceFile(fileName: string)
+
+Returns a specific source file by name.
+
+<ParamField path="fileName" type="string" required>
+  The name of the source file to retrieve
+</ParamField>
+
+<ResponseField name="return" type="SourceFile | undefined">
+  The source file, or undefined if not found
+</ResponseField>
+
+```typescript
+const sourceFile = program.getSourceFile('./src/index.ts');
+if (sourceFile) {
+  console.log(`Found: ${sourceFile.fileName}`);
+}
+```
+
+### Type Checking
+
+#### getTypeChecker()
+
+Returns a type checker that can be used to perform semantic analysis.
+
+<ResponseField name="return" type="TypeChecker">
+  A TypeChecker instance for semantic analysis
+</ResponseField>
+
+```typescript
+const typeChecker = program.getTypeChecker();
+
+// Use the type checker
+const sourceFile = program.getSourceFile('./src/index.ts');
+if (sourceFile) {
+  ts.forEachChild(sourceFile, (node) => {
+    if (ts.isIdentifier(node)) {
+      const symbol = typeChecker.getSymbolAtLocation(node);
+      if (symbol) {
+        const type = typeChecker.getTypeOfSymbolAtLocation(symbol, node);
+        console.log(`${symbol.name}: ${typeChecker.typeToString(type)}`);
+      }
+    }
+  });
+}
+```
+
+### Diagnostics
+
+The Program provides several methods for retrieving compilation diagnostics.
+
+#### getSyntacticDiagnostics()
+
+Returns syntax errors for a source file or all files.
+
+<ParamField path="sourceFile" type="SourceFile">
+  Optional source file to check. If not provided, checks all files.
+</ParamField>
+
+<ParamField path="cancellationToken" type="CancellationToken">
+  Optional token to cancel the operation
+</ParamField>
+
+<ResponseField name="return" type="readonly DiagnosticWithLocation[]">
+  Array of syntax diagnostics
+</ResponseField>
+
+```typescript
+const syntaxDiagnostics = program.getSyntacticDiagnostics();
+if (syntaxDiagnostics.length > 0) {
+  console.log('Syntax errors found:');
+  syntaxDiagnostics.forEach(diagnostic => {
+    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n');
+    const { line, character } = diagnostic.file!
+      .getLineAndCharacterOfPosition(diagnostic.start!);
+    console.log(`  ${diagnostic.file!.fileName} (${line + 1},${character + 1}): ${message}`);
+  });
+}
+```
+
+#### getSemanticDiagnostics()
+
+Returns semantic/type errors for a source file or all files.
+
+<ParamField path="sourceFile" type="SourceFile">
+  Optional source file to check
+</ParamField>
+
+<ParamField path="cancellationToken" type="CancellationToken">
+  Optional cancellation token
+</ParamField>
+
+<ResponseField name="return" type="readonly Diagnostic[]">
+  Array of semantic diagnostics
+</ResponseField>
+
+```typescript
+const semanticDiagnostics = program.getSemanticDiagnostics();
+if (semanticDiagnostics.length > 0) {
+  console.log('Type errors found:');
+  semanticDiagnostics.forEach(diagnostic => {
+    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n');
+    console.log(`  ${message}`);
+  });
+}
+```
+
+#### getDeclarationDiagnostics()
+
+Returns errors related to declaration file generation.
+
+<ResponseField name="return" type="readonly DiagnosticWithLocation[]">
+  Array of declaration diagnostics
+</ResponseField>
+
+```typescript
+const declarationDiagnostics = program.getDeclarationDiagnostics();
+```
+
+#### getOptionsDiagnostics()
+
+Returns diagnostics related to compiler options.
+
+<ResponseField name="return" type="readonly Diagnostic[]">
+  Array of option diagnostics
+</ResponseField>
+
+```typescript
+const optionDiagnostics = program.getOptionsDiagnostics();
+```
+
+#### getGlobalDiagnostics()
+
+Returns global diagnostics not associated with any specific file.
+
+<ResponseField name="return" type="readonly Diagnostic[]">
+  Array of global diagnostics
+</ResponseField>
+
+```typescript
+const globalDiagnostics = program.getGlobalDiagnostics();
+```
+
+#### getConfigFileParsingDiagnostics()
+
+Returns diagnostics from parsing the tsconfig.json file.
+
+<ResponseField name="return" type="readonly Diagnostic[]">
+  Array of config file diagnostics
+</ResponseField>
+
+```typescript
+const configDiagnostics = program.getConfigFileParsingDiagnostics();
+```
+
+### Emitting Output
+
+#### emit()
+
+Emits JavaScript and declaration files for the program.
+
+<ParamField path="targetSourceFile" type="SourceFile">
+  Optional specific file to emit. If not provided, emits all files.
+</ParamField>
+
+<ParamField path="writeFile" type="WriteFileCallback">
+  Optional custom write callback
+</ParamField>
+
+<ParamField path="cancellationToken" type="CancellationToken">
+  Optional cancellation token
+</ParamField>
+
+<ParamField path="emitOnlyDtsFiles" type="boolean">
+  If true, only emits declaration files
+</ParamField>
+
+<ParamField path="customTransformers" type="CustomTransformers">
+  Optional custom AST transformers
+</ParamField>
+
+<ResponseField name="return" type="EmitResult">
+  Object containing emit results and diagnostics
+  
+  <ResponseField name="emitSkipped" type="boolean">
+    Whether emit was skipped
+  </ResponseField>
+  
+  <ResponseField name="diagnostics" type="readonly Diagnostic[]">
+    Diagnostics from the emit process
+  </ResponseField>
+</ResponseField>
+
+```typescript
+// Emit all files
+const emitResult = program.emit();
+if (emitResult.emitSkipped) {
+  console.log('Emit was skipped');
+} else {
+  console.log('Emit successful');
+}
+
+// Emit a specific file
+const sourceFile = program.getSourceFile('./src/index.ts');
+if (sourceFile) {
+  program.emit(sourceFile);
+}
+
+// Emit only declaration files
+program.emit(undefined, undefined, undefined, true);
+
+// Custom write file callback
+program.emit(
+  undefined,
+  (fileName, data, writeByteOrderMark) => {
+    console.log(`Writing: ${fileName}`);
+    ts.sys.writeFile(fileName, data, writeByteOrderMark);
+  }
+);
+```
+
+### Utility Methods
+
+#### getCurrentDirectory()
+
+Returns the current working directory.
+
+<ResponseField name="return" type="string">
+  The current directory path
+</ResponseField>
+
+```typescript
+const currentDir = program.getCurrentDirectory();
+console.log('Current directory:', currentDir);
+```
+
+#### getNodeCount()
+
+Returns the total number of AST nodes in the program.
+
+<ResponseField name="return" type="number">
+  Total node count
+</ResponseField>
+
+```typescript
+console.log('Total nodes:', program.getNodeCount());
+```
+
+#### getIdentifierCount()
+
+Returns the total number of identifiers in the program.
+
+<ResponseField name="return" type="number">
+  Total identifier count
+</ResponseField>
+
+```typescript
+console.log('Total identifiers:', program.getIdentifierCount());
+```
+
+#### getSymbolCount()
+
+Returns the total number of symbols in the program.
+
+<ResponseField name="return" type="number">
+  Total symbol count
+</ResponseField>
+
+```typescript
+console.log('Total symbols:', program.getSymbolCount());
+```
+
+#### getTypeCount()
+
+Returns the total number of types in the program.
+
+<ResponseField name="return" type="number">
+  Total type count
+</ResponseField>
+
+```typescript
+console.log('Total types:', program.getTypeCount());
+```
+
+#### isSourceFileFromExternalLibrary(file: SourceFile)
+
+Determines if a source file is from an external library.
+
+<ParamField path="file" type="SourceFile" required>
+  The source file to check
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if the file is from an external library
+</ResponseField>
+
+```typescript
+const sourceFile = program.getSourceFile('./node_modules/lodash/index.d.ts');
+if (sourceFile && program.isSourceFileFromExternalLibrary(sourceFile)) {
+  console.log('This is an external library file');
+}
+```
+
+#### isSourceFileDefaultLibrary(file: SourceFile)
+
+Determines if a source file is from the default library (e.g., lib.d.ts).
+
+<ParamField path="file" type="SourceFile" required>
+  The source file to check
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if the file is from the default library
+</ResponseField>
+
+```typescript
+for (const sourceFile of program.getSourceFiles()) {
+  if (program.isSourceFileDefaultLibrary(sourceFile)) {
+    console.log(`Default lib: ${sourceFile.fileName}`);
+  }
+}
+```
+
+## Complete Example
+
+```typescript
+import * as ts from 'typescript';
+
+// Create a program
+const program = ts.createProgram({
+  rootNames: ['./src/index.ts'],
+  options: {
+    target: ts.ScriptTarget.ES2020,
+    module: ts.ModuleKind.CommonJS,
+    strict: true,
+    declaration: true,
+    outDir: './dist'
+  }
+});
+
+// Get all diagnostics
+const allDiagnostics = ts.getPreEmitDiagnostics(program);
+
+if (allDiagnostics.length > 0) {
+  allDiagnostics.forEach(diagnostic => {
+    if (diagnostic.file) {
+      const { line, character } = diagnostic.file.getLineAndCharacterOfPosition(
+        diagnostic.start!
+      );
+      const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n');
+      console.log(
+        `${diagnostic.file.fileName} (${line + 1},${character + 1}): ${message}`
+      );
+    } else {
+      console.log(ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'));
+    }
+  });
+} else {
+  console.log('No errors found');
+  
+  // Emit the output files
+  const emitResult = program.emit();
+  
+  if (emitResult.emitSkipped) {
+    console.log('Emit was skipped');
+  } else {
+    console.log('Compilation successful');
+  }
+  
+  // Print statistics
+  console.log(`\nStatistics:`);
+  console.log(`  Nodes: ${program.getNodeCount()}`);
+  console.log(`  Identifiers: ${program.getIdentifierCount()}`);
+  console.log(`  Symbols: ${program.getSymbolCount()}`);
+  console.log(`  Types: ${program.getTypeCount()}`);
+}
+```
+
+## See Also
+
+- [Compiler API Overview](/api/compiler-api-overview)
+- [TypeChecker API](/api/type-checker)
+- [Source Files and AST](/api/parser)

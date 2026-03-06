@@ -1,0 +1,387 @@
+---
+title: SyntaxKind
+description: Complete reference of TypeScript syntax kinds for AST node classification
+---
+
+The `SyntaxKind` enum identifies the type of each node in the TypeScript Abstract Syntax Tree (AST). Every node has a `kind` property that determines its type and structure.
+
+```typescript
+export const enum SyntaxKind {
+  Unknown,
+  EndOfFileToken,
+  // ... hundreds of kinds
+}
+```
+
+## Trivia and Tokens
+
+### Trivia (Comments and Whitespace)
+
+| Kind | Value | Description |
+|------|-------|-------------|
+| `Unknown` | 0 | Unknown token |
+| `EndOfFileToken` | 1 | End of file marker |
+| `SingleLineCommentTrivia` | 2 | `// comment` |
+| `MultiLineCommentTrivia` | 3 | `/* comment */` |
+| `NewLineTrivia` | 4 | Line break |
+| `WhitespaceTrivia` | 5 | Spaces and tabs |
+| `ShebangTrivia` | 6 | `#!/usr/bin/env node` |
+| `ConflictMarkerTrivia` | 7 | Git conflict markers |
+
+## Literals
+
+### Primary Literals
+
+| Kind | Description | Example |
+|------|-------------|----------|
+| `NumericLiteral` | Number literal | `42`, `3.14` |
+| `BigIntLiteral` | BigInt literal | `100n` |
+| `StringLiteral` | String literal | `"hello"`, `'world'` |
+| `RegularExpressionLiteral` | Regex literal | `/pattern/g` |
+| `NoSubstitutionTemplateLiteral` | Template without expressions | `` `text` `` |
+
+### Template Literals
+
+| Kind | Description |
+|------|-------------|
+| `TemplateHead` | `` `start ${`` |
+| `TemplateMiddle` | ``} middle ${`` |
+| `TemplateTail` | ``} end` `` |
+
+## Punctuation
+
+### Braces and Brackets
+
+| Kind | Symbol |
+|------|--------|
+| `OpenBraceToken` | `{` |
+| `CloseBraceToken` | `}` |
+| `OpenParenToken` | `(` |
+| `CloseParenToken` | `)` |
+| `OpenBracketToken` | `[` |
+| `CloseBracketToken` | `]` |
+
+### Operators
+
+| Kind | Symbol | Description |
+|------|--------|-------------|
+| `PlusToken` | `+` | Addition |
+| `MinusToken` | `-` | Subtraction |
+| `AsteriskToken` | `*` | Multiplication |
+| `AsteriskAsteriskToken` | `**` | Exponentiation |
+| `SlashToken` | `/` | Division |
+| `PercentToken` | `%` | Modulo |
+| `PlusPlusToken` | `++` | Increment |
+| `MinusMinusToken` | `--` | Decrement |
+| `LessThanToken` | `<` | Less than |
+| `GreaterThanToken` | `>` | Greater than |
+| `LessThanEqualsToken` | `<=` | Less than or equal |
+| `GreaterThanEqualsToken` | `>=` | Greater than or equal |
+| `EqualsEqualsToken` | `==` | Equality |
+| `ExclamationEqualsToken` | `!=` | Inequality |
+| `EqualsEqualsEqualsToken` | `===` | Strict equality |
+| `ExclamationEqualsEqualsToken` | `!==` | Strict inequality |
+| `EqualsGreaterThanToken` | `=>` | Arrow function |
+| `AmpersandToken` | `&` | Bitwise AND |
+| `BarToken` | `|` | Bitwise OR |
+| `CaretToken` | `^` | Bitwise XOR |
+| `TildeToken` | `~` | Bitwise NOT |
+| `AmpersandAmpersandToken` | `&&` | Logical AND |
+| `BarBarToken` | `||` | Logical OR |
+| `QuestionQuestionToken` | `??` | Nullish coalescing |
+
+### Other Punctuation
+
+| Kind | Symbol |
+|------|--------|
+| `DotToken` | `.` |
+| `DotDotDotToken` | `...` |
+| `SemicolonToken` | `;` |
+| `CommaToken` | `,` |
+| `QuestionToken` | `?` |
+| `ColonToken` | `:` |
+| `AtToken` | `@` |
+| `QuestionDotToken` | `?.` |
+| `ExclamationToken` | `!` |
+
+### Assignment Operators
+
+| Kind | Symbol |
+|------|--------|
+| `EqualsToken` | `=` |
+| `PlusEqualsToken` | `+=` |
+| `MinusEqualsToken` | `-=` |
+| `AsteriskEqualsToken` | `*=` |
+| `AsteriskAsteriskEqualsToken` | `**=` |
+| `SlashEqualsToken` | `/=` |
+| `PercentEqualsToken` | `%=` |
+| `AmpersandEqualsToken` | `&=` |
+| `BarEqualsToken` | `|=` |
+| `CaretEqualsToken` | `^=` |
+| `AmpersandAmpersandEqualsToken` | `&&=` |
+| `BarBarEqualsToken` | `||=` |
+| `QuestionQuestionEqualsToken` | `??=` |
+
+## Keywords
+
+### Reserved Words
+
+| Keyword | SyntaxKind |
+|---------|------------|
+| `break` | `BreakKeyword` |
+| `case` | `CaseKeyword` |
+| `catch` | `CatchKeyword` |
+| `class` | `ClassKeyword` |
+| `const` | `ConstKeyword` |
+| `continue` | `ContinueKeyword` |
+| `debugger` | `DebuggerKeyword` |
+| `default` | `DefaultKeyword` |
+| `delete` | `DeleteKeyword` |
+| `do` | `DoKeyword` |
+| `else` | `ElseKeyword` |
+| `enum` | `EnumKeyword` |
+| `export` | `ExportKeyword` |
+| `extends` | `ExtendsKeyword` |
+| `false` | `FalseKeyword` |
+| `finally` | `FinallyKeyword` |
+| `for` | `ForKeyword` |
+| `function` | `FunctionKeyword` |
+| `if` | `IfKeyword` |
+| `import` | `ImportKeyword` |
+| `in` | `InKeyword` |
+| `instanceof` | `InstanceOfKeyword` |
+| `new` | `NewKeyword` |
+| `null` | `NullKeyword` |
+| `return` | `ReturnKeyword` |
+| `super` | `SuperKeyword` |
+| `switch` | `SwitchKeyword` |
+| `this` | `ThisKeyword` |
+| `throw` | `ThrowKeyword` |
+| `true` | `TrueKeyword` |
+| `try` | `TryKeyword` |
+| `typeof` | `TypeOfKeyword` |
+| `var` | `VarKeyword` |
+| `void` | `VoidKeyword` |
+| `while` | `WhileKeyword` |
+| `with` | `WithKeyword` |
+
+### Strict Mode Reserved Words
+
+| Keyword | SyntaxKind |
+|---------|------------|
+| `implements` | `ImplementsKeyword` |
+| `interface` | `InterfaceKeyword` |
+| `let` | `LetKeyword` |
+| `package` | `PackageKeyword` |
+| `private` | `PrivateKeyword` |
+| `protected` | `ProtectedKeyword` |
+| `public` | `PublicKeyword` |
+| `static` | `StaticKeyword` |
+| `yield` | `YieldKeyword` |
+
+### Contextual Keywords
+
+| Keyword | SyntaxKind | Usage |
+|---------|------------|-------|
+| `abstract` | `AbstractKeyword` | Abstract classes/methods |
+| `accessor` | `AccessorKeyword` | Auto-accessor fields |
+| `any` | `AnyKeyword` | Any type |
+| `as` | `AsKeyword` | Type assertions |
+| `asserts` | `AssertsKeyword` | Assertion signatures |
+| `assert` | `AssertKeyword` | Import assertions |
+| `async` | `AsyncKeyword` | Async functions |
+| `await` | `AwaitKeyword` | Await expressions |
+| `boolean` | `BooleanKeyword` | Boolean type |
+| `constructor` | `ConstructorKeyword` | Constructors |
+| `declare` | `DeclareKeyword` | Ambient declarations |
+| `get` | `GetKeyword` | Getter methods |
+| `infer` | `InferKeyword` | Type inference |
+| `intrinsic` | `IntrinsicKeyword` | Intrinsic types |
+| `is` | `IsKeyword` | Type predicates |
+| `keyof` | `KeyOfKeyword` | Keyof operator |
+| `module` | `ModuleKeyword` | Module declarations |
+| `namespace` | `NamespaceKeyword` | Namespaces |
+| `never` | `NeverKeyword` | Never type |
+| `number` | `NumberKeyword` | Number type |
+| `object` | `ObjectKeyword` | Object type |
+| `out` | `OutKeyword` | Covariance annotation |
+| `override` | `OverrideKeyword` | Override modifier |
+| `readonly` | `ReadonlyKeyword` | Readonly modifier |
+| `require` | `RequireKeyword` | Require calls |
+| `satisfies` | `SatisfiesKeyword` | Satisfies operator |
+| `set` | `SetKeyword` | Setter methods |
+| `string` | `StringKeyword` | String type |
+| `symbol` | `SymbolKeyword` | Symbol type |
+| `type` | `TypeKeyword` | Type aliases |
+| `undefined` | `UndefinedKeyword` | Undefined type |
+| `unique` | `UniqueKeyword` | Unique symbols |
+| `unknown` | `UnknownKeyword` | Unknown type |
+| `using` | `UsingKeyword` | Using declarations |
+| `from` | `FromKeyword` | Import from |
+| `global` | `GlobalKeyword` | Global augmentation |
+| `bigint` | `BigIntKeyword` | BigInt type |
+| `of` | `OfKeyword` | For-of loops |
+| `defer` | `DeferKeyword` | Deferred evaluation |
+
+## Parse Tree Nodes
+
+### Names
+
+- `QualifiedName` - `A.B.C`
+- `ComputedPropertyName` - `[expr]`
+
+### Type Members
+
+- `PropertySignature`
+- `PropertyDeclaration`
+- `MethodSignature`
+- `MethodDeclaration`
+- `Constructor`
+- `GetAccessor`
+- `SetAccessor`
+- `CallSignature`
+- `ConstructSignature`
+- `IndexSignature`
+
+### Types
+
+- `TypePredicate`
+- `TypeReference`
+- `FunctionType`
+- `ConstructorType`
+- `TypeQuery`
+- `TypeLiteral`
+- `ArrayType`
+- `TupleType`
+- `UnionType`
+- `IntersectionType`
+- `ConditionalType`
+- `InferType`
+- `MappedType`
+- `TemplateLiteralType`
+- `ImportType`
+
+### Expressions
+
+- `ArrayLiteralExpression`
+- `ObjectLiteralExpression`
+- `PropertyAccessExpression`
+- `ElementAccessExpression`
+- `CallExpression`
+- `NewExpression`
+- `TaggedTemplateExpression`
+- `TypeAssertionExpression`
+- `ParenthesizedExpression`
+- `FunctionExpression`
+- `ArrowFunction`
+- `DeleteExpression`
+- `TypeOfExpression`
+- `VoidExpression`
+- `AwaitExpression`
+- `PrefixUnaryExpression`
+- `PostfixUnaryExpression`
+- `BinaryExpression`
+- `ConditionalExpression`
+- `YieldExpression`
+- `SpreadElement`
+- `ClassExpression`
+- `AsExpression`
+- `NonNullExpression`
+- `SatisfiesExpression`
+
+### Statements
+
+- `Block`
+- `VariableStatement`
+- `ExpressionStatement`
+- `IfStatement`
+- `DoStatement`
+- `WhileStatement`
+- `ForStatement`
+- `ForInStatement`
+- `ForOfStatement`
+- `ContinueStatement`
+- `BreakStatement`
+- `ReturnStatement`
+- `WithStatement`
+- `SwitchStatement`
+- `LabeledStatement`
+- `ThrowStatement`
+- `TryStatement`
+- `DebuggerStatement`
+
+### Declarations
+
+- `VariableDeclaration`
+- `FunctionDeclaration`
+- `ClassDeclaration`
+- `InterfaceDeclaration`
+- `TypeAliasDeclaration`
+- `EnumDeclaration`
+- `ModuleDeclaration`
+- `ImportDeclaration`
+- `ExportDeclaration`
+- `ImportEqualsDeclaration`
+- `ExportAssignment`
+
+### JSX
+
+- `JsxElement`
+- `JsxSelfClosingElement`
+- `JsxOpeningElement`
+- `JsxClosingElement`
+- `JsxFragment`
+- `JsxAttribute`
+- `JsxSpreadAttribute`
+- `JsxExpression`
+
+### Other
+
+- `SourceFile` - Root node
+- `Bundle` - Multiple source files
+- `SyntaxList` - List of nodes
+
+## Helper Markers
+
+The enum includes helper values for ranges:
+
+```typescript
+FirstAssignment = EqualsToken,
+LastAssignment = CaretEqualsToken,
+FirstReservedWord = BreakKeyword,
+LastReservedWord = WithKeyword,
+FirstKeyword = BreakKeyword,
+LastKeyword = DeferKeyword,
+FirstPunctuation = OpenBraceToken,
+LastPunctuation = CaretEqualsToken,
+```
+
+## Usage
+
+### Checking Node Kind
+
+```typescript
+import ts from 'typescript';
+
+if (node.kind === ts.SyntaxKind.FunctionDeclaration) {
+  console.log('Found a function declaration');
+}
+
+// Or use type guards
+if (ts.isFunctionDeclaration(node)) {
+  console.log('Found a function declaration');
+}
+```
+
+### Getting Kind Name
+
+```typescript
+const kindName = ts.SyntaxKind[node.kind];
+console.log(`Node kind: ${kindName}`);
+```
+
+## See Also
+
+- [Node Types](/api/types/node-types) - Node type hierarchy
+- [TypeFlags](/api/types/type-flags) - Type system flags
+- [Compiler Overview](/compiler/overview) - TypeScript compiler architecture

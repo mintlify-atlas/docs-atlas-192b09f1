@@ -1,0 +1,624 @@
+---
+title: "Scanner API"
+description: "Documentation for the TypeScript Scanner interface"
+---
+
+## Overview
+
+The `Scanner` performs lexical analysis (tokenization) of TypeScript source code. It breaks the source text into a stream of tokens that can be used by the parser or for direct analysis.
+
+## Creating a Scanner
+
+### ts.createScanner()
+
+Creates a new Scanner instance.
+
+<ParamField path="languageVersion" type="ScriptTarget" required>
+  The ECMAScript target version (ES5, ES2015, ES2020, etc.)
+</ParamField>
+
+<ParamField path="skipTrivia" type="boolean" required>
+  Whether to skip whitespace and comments
+</ParamField>
+
+<ParamField path="languageVariant" type="LanguageVariant">
+  Standard or JSX variant (defaults to Standard)
+</ParamField>
+
+<ParamField path="textInitial" type="string">
+  Initial text to scan
+</ParamField>
+
+<ParamField path="onError" type="ErrorCallback">
+  Error callback function
+</ParamField>
+
+<ParamField path="start" type="number">
+  Starting position in the text
+</ParamField>
+
+<ParamField path="length" type="number">
+  Length of text to scan
+</ParamField>
+
+<ResponseField name="return" type="Scanner">
+  A Scanner instance
+</ResponseField>
+
+### Example
+
+```typescript
+import * as ts from 'typescript';
+
+const sourceCode = `
+function add(a: number, b: number): number {
+  return a + b;
+}
+`;
+
+const scanner = ts.createScanner(
+  ts.ScriptTarget.ES2020,
+  false, // skipTrivia
+  ts.LanguageVariant.Standard,
+  sourceCode
+);
+```
+
+## Scanner Interface Methods
+
+### Scanning Methods
+
+#### scan()
+
+Scans the next token from the input.
+
+<ResponseField name="return" type="SyntaxKind">
+  The syntax kind of the scanned token
+</ResponseField>
+
+```typescript
+let token: ts.SyntaxKind;
+while ((token = scanner.scan()) !== ts.SyntaxKind.EndOfFileToken) {
+  console.log(`Token: ${ts.SyntaxKind[token]}`);
+  console.log(`Text: ${scanner.getTokenText()}`);
+  console.log(`Position: ${scanner.getTokenStart()} - ${scanner.getTokenEnd()}`);
+}
+```
+
+#### getText()
+
+Returns the full text being scanned.
+
+<ResponseField name="return" type="string">
+  The full source text
+</ResponseField>
+
+```typescript
+const text = scanner.getText();
+console.log(`Scanning: ${text}`);
+```
+
+#### setText()
+
+Sets new text for the scanner to scan.
+
+<ParamField path="text" type="string | undefined" required>
+  The text to scan
+</ParamField>
+
+<ParamField path="start" type="number">
+  Starting position (defaults to 0)
+</ParamField>
+
+<ParamField path="length" type="number">
+  Length to scan (defaults to entire text)
+</ParamField>
+
+```typescript
+scanner.setText('const x = 42;');
+let token = scanner.scan();
+// First token will be 'const'
+```
+
+### Token Information Methods
+
+#### getToken()
+
+Returns the current token's syntax kind.
+
+<ResponseField name="return" type="SyntaxKind">
+  The current token's syntax kind
+</ResponseField>
+
+```typescript
+scanner.scan();
+const currentToken = scanner.getToken();
+console.log(`Current token: ${ts.SyntaxKind[currentToken]}`);
+```
+
+#### getTokenText()
+
+Returns the text of the current token.
+
+<ResponseField name="return" type="string">
+  The token's text
+</ResponseField>
+
+```typescript
+scanner.scan();
+const text = scanner.getTokenText();
+console.log(`Token text: ${text}`);
+```
+
+#### getTokenValue()
+
+Returns the processed value of the current token (for strings and numbers).
+
+<ResponseField name="return" type="string">
+  The token's processed value
+</ResponseField>
+
+```typescript
+// For a string literal like "hello\nworld"
+scanner.scan();
+const text = scanner.getTokenText(); // "hello\nworld" (with quotes)
+const value = scanner.getTokenValue(); // hello
+world (without quotes, with actual newline)
+```
+
+#### getTokenStart()
+
+Returns the starting position of the current token (excluding leading trivia).
+
+<ResponseField name="return" type="number">
+  The token's start position
+</ResponseField>
+
+```typescript
+scanner.scan();
+const start = scanner.getTokenStart();
+console.log(`Token starts at position: ${start}`);
+```
+
+#### getTokenEnd()
+
+Returns the ending position of the current token.
+
+<ResponseField name="return" type="number">
+  The token's end position
+</ResponseField>
+
+```typescript
+scanner.scan();
+const start = scanner.getTokenStart();
+const end = scanner.getTokenEnd();
+console.log(`Token span: ${start} - ${end}`);
+```
+
+#### getTokenFullStart()
+
+Returns the starting position of the current token (including leading trivia).
+
+<ResponseField name="return" type="number">
+  The token's full start position
+</ResponseField>
+
+```typescript
+scanner.scan();
+const fullStart = scanner.getTokenFullStart();
+const start = scanner.getTokenStart();
+const leadingTriviaLength = start - fullStart;
+console.log(`Leading trivia length: ${leadingTriviaLength}`);
+```
+
+### Token State Methods
+
+#### isIdentifier()
+
+Returns true if the current token is an identifier.
+
+<ResponseField name="return" type="boolean">
+  True if the token is an identifier
+</ResponseField>
+
+```typescript
+scanner.scan();
+if (scanner.isIdentifier()) {
+  console.log(`Found identifier: ${scanner.getTokenText()}`);
+}
+```
+
+#### isReservedWord()
+
+Returns true if the current token is a reserved keyword.
+
+<ResponseField name="return" type="boolean">
+  True if the token is a reserved word
+</ResponseField>
+
+```typescript
+scanner.scan();
+if (scanner.isReservedWord()) {
+  console.log(`Found keyword: ${scanner.getTokenText()}`);
+}
+```
+
+#### isUnterminated()
+
+Returns true if the current token is unterminated (e.g., unterminated string).
+
+<ResponseField name="return" type="boolean">
+  True if the token is unterminated
+</ResponseField>
+
+```typescript
+scanner.setText('"unterminated string');
+scanner.scan();
+if (scanner.isUnterminated()) {
+  console.log('Warning: Unterminated string literal');
+}
+```
+
+#### hasPrecedingLineBreak()
+
+Returns true if there's a line break before the current token.
+
+<ResponseField name="return" type="boolean">
+  True if there's a preceding line break
+</ResponseField>
+
+```typescript
+const code = `const x = 1;
+const y = 2;`;
+scanner.setText(code);
+
+scanner.scan(); // 'const'
+scanner.scan(); // 'x'
+scanner.scan(); // '='
+scanner.scan(); // '1'
+scanner.scan(); // ';'
+scanner.scan(); // 'const'
+
+if (scanner.hasPrecedingLineBreak()) {
+  console.log('This token is on a new line');
+}
+```
+
+#### hasUnicodeEscape()
+
+Returns true if the current identifier contains a Unicode escape sequence.
+
+<ResponseField name="return" type="boolean">
+  True if the token has Unicode escapes
+</ResponseField>
+
+#### hasExtendedUnicodeEscape()
+
+Returns true if the current identifier contains an extended Unicode escape sequence.
+
+<ResponseField name="return" type="boolean">
+  True if the token has extended Unicode escapes
+</ResponseField>
+
+### Advanced Scanning Methods
+
+#### reScanGreaterToken()
+
+Re-scans a greater-than token in JSX or type contexts.
+
+<ResponseField name="return" type="SyntaxKind">
+  The re-scanned token kind
+</ResponseField>
+
+```typescript
+// Used internally for parsing generics
+if (scanner.getToken() === ts.SyntaxKind.GreaterThanToken) {
+  const newToken = scanner.reScanGreaterToken();
+  // Might become GreaterThanGreaterThanToken (>>)
+}
+```
+
+#### reScanSlashToken()
+
+Re-scans a slash token (could be division or regex).
+
+<ResponseField name="return" type="SyntaxKind">
+  The re-scanned token kind (SlashToken or RegularExpressionLiteral)
+</ResponseField>
+
+```typescript
+// Context-dependent scanning
+if (scanner.getToken() === ts.SyntaxKind.SlashToken) {
+  const newToken = scanner.reScanSlashToken();
+  if (newToken === ts.SyntaxKind.RegularExpressionLiteral) {
+    console.log('This is a regex literal');
+  }
+}
+```
+
+#### reScanTemplateToken()
+
+Re-scans template literal tokens.
+
+<ParamField path="isTaggedTemplate" type="boolean" required>
+  Whether this is a tagged template literal
+</ParamField>
+
+<ResponseField name="return" type="SyntaxKind">
+  The re-scanned template token kind
+</ResponseField>
+
+#### scanJsxIdentifier()
+
+Scans a JSX identifier (allows hyphens).
+
+<ResponseField name="return" type="SyntaxKind">
+  The JSX identifier token
+</ResponseField>
+
+#### scanJsxToken()
+
+Scans the next token in JSX mode.
+
+<ResponseField name="return" type="JsxTokenSyntaxKind">
+  The JSX token kind
+</ResponseField>
+
+#### scanJsxAttributeValue()
+
+Scans a JSX attribute value.
+
+<ResponseField name="return" type="SyntaxKind">
+  The attribute value token
+</ResponseField>
+
+### State Management Methods
+
+#### resetTokenState()
+
+Resets the scanner to a specific position.
+
+<ParamField path="pos" type="number" required>
+  The position to reset to
+</ParamField>
+
+```typescript
+const pos = scanner.getTokenEnd();
+// ... scan more tokens
+// Reset to previous position
+scanner.resetTokenState(pos);
+```
+
+#### lookAhead()
+
+Invokes a callback while saving/restoring scanner state.
+
+<ParamField path="callback" type="() => T" required>
+  Function to call with lookahead
+</ParamField>
+
+<ResponseField name="return" type="T">
+  The result of the callback
+</ResponseField>
+
+```typescript
+const nextTokenIsColon = scanner.lookAhead(() => {
+  scanner.scan(); // Look at next token
+  return scanner.getToken() === ts.SyntaxKind.ColonToken;
+});
+// Scanner state is restored after lookAhead
+```
+
+#### tryScan()
+
+Tries a scan operation, only committing if the callback returns truthy.
+
+<ParamField path="callback" type="() => T" required>
+  Function to try
+</ParamField>
+
+<ResponseField name="return" type="T">
+  The result of the callback
+</ResponseField>
+
+```typescript
+const result = scanner.tryScan(() => {
+  scanner.scan();
+  if (scanner.getToken() === ts.SyntaxKind.FunctionKeyword) {
+    return true; // Commit the scan
+  }
+  return false; // Rollback the scan
+});
+```
+
+#### scanRange()
+
+Scans a specific range of text.
+
+<ParamField path="start" type="number" required>
+  Start position
+</ParamField>
+
+<ParamField path="length" type="number" required>
+  Length to scan
+</ParamField>
+
+<ParamField path="callback" type="() => T" required>
+  Function to call while scanning the range
+</ParamField>
+
+<ResponseField name="return" type="T">
+  The result of the callback
+</ResponseField>
+
+### Configuration Methods
+
+#### setScriptTarget()
+
+Sets the ECMAScript target version.
+
+<ParamField path="scriptTarget" type="ScriptTarget" required>
+  The target version
+</ParamField>
+
+```typescript
+scanner.setScriptTarget(ts.ScriptTarget.ES2020);
+```
+
+#### setLanguageVariant()
+
+Sets the language variant (Standard or JSX).
+
+<ParamField path="variant" type="LanguageVariant" required>
+  The language variant
+</ParamField>
+
+```typescript
+scanner.setLanguageVariant(ts.LanguageVariant.JSX);
+```
+
+#### setScriptKind()
+
+Sets the script kind (TS, JS, JSX, etc.).
+
+<ParamField path="scriptKind" type="ScriptKind" required>
+  The script kind
+</ParamField>
+
+```typescript
+scanner.setScriptKind(ts.ScriptKind.TSX);
+```
+
+#### setOnError()
+
+Sets the error callback function.
+
+<ParamField path="onError" type="ErrorCallback | undefined" required>
+  The error callback
+</ParamField>
+
+```typescript
+scanner.setOnError((message, length) => {
+  console.error(`Scanner error: ${message}`);
+});
+```
+
+## Complete Example
+
+```typescript
+import * as ts from 'typescript';
+
+function tokenizeSourceCode(sourceCode: string) {
+  const scanner = ts.createScanner(
+    ts.ScriptTarget.Latest,
+    false, // don't skip trivia
+    ts.LanguageVariant.Standard,
+    sourceCode
+  );
+  
+  const tokens: Array<{
+    kind: string;
+    text: string;
+    start: number;
+    end: number;
+    hasLineBreak: boolean;
+  }> = [];
+  
+  let token: ts.SyntaxKind;
+  while ((token = scanner.scan()) !== ts.SyntaxKind.EndOfFileToken) {
+    tokens.push({
+      kind: ts.SyntaxKind[token],
+      text: scanner.getTokenText(),
+      start: scanner.getTokenStart(),
+      end: scanner.getTokenEnd(),
+      hasLineBreak: scanner.hasPrecedingLineBreak()
+    });
+  }
+  
+  return tokens;
+}
+
+// Example usage
+const code = `
+function greet(name: string): string {
+  return "Hello, " + name;
+}
+`;
+
+const tokens = tokenizeSourceCode(code);
+
+console.log('Tokens:');
+tokens.forEach((token, index) => {
+  const prefix = token.hasLineBreak ? '\n' : '';
+  console.log(
+    `${prefix}[${index}] ${token.kind.padEnd(25)} "${token.text}" (${token.start}-${token.end})`
+  );
+});
+
+// Output:
+// Tokens:
+// [0] FunctionKeyword          "function" (1-9)
+// [1] WhitespaceTrivia          " " (9-10)
+// [2] Identifier                "greet" (10-15)
+// [3] OpenParenToken            "(" (15-16)
+// [4] Identifier                "name" (16-20)
+// [5] ColonToken                ":" (20-21)
+// [6] WhitespaceTrivia          " " (21-22)
+// [7] StringKeyword             "string" (22-28)
+// ...
+```
+
+## Syntax Kinds
+
+Common token types (SyntaxKind enum):
+
+```typescript
+// Keywords
+ts.SyntaxKind.FunctionKeyword
+ts.SyntaxKind.ConstKeyword
+ts.SyntaxKind.LetKeyword
+ts.SyntaxKind.VarKeyword
+ts.SyntaxKind.IfKeyword
+ts.SyntaxKind.ElseKeyword
+ts.SyntaxKind.ReturnKeyword
+
+// Literals
+ts.SyntaxKind.NumericLiteral
+ts.SyntaxKind.StringLiteral
+ts.SyntaxKind.TrueKeyword
+ts.SyntaxKind.FalseKeyword
+
+// Punctuation
+ts.SyntaxKind.OpenBraceToken        // {
+ts.SyntaxKind.CloseBraceToken       // }
+ts.SyntaxKind.OpenParenToken        // (
+ts.SyntaxKind.CloseParenToken       // )
+ts.SyntaxKind.OpenBracketToken      // [
+ts.SyntaxKind.CloseBracketToken     // ]
+ts.SyntaxKind.SemicolonToken        // ;
+ts.SyntaxKind.CommaToken            // ,
+ts.SyntaxKind.ColonToken            // :
+ts.SyntaxKind.DotToken              // .
+
+// Operators
+ts.SyntaxKind.PlusToken             // +
+ts.SyntaxKind.MinusToken            // -
+ts.SyntaxKind.AsteriskToken         // *
+ts.SyntaxKind.SlashToken            // /
+ts.SyntaxKind.EqualsToken           // =
+ts.SyntaxKind.EqualsEqualsToken     // ==
+ts.SyntaxKind.EqualsEqualsEqualsToken // ===
+ts.SyntaxKind.GreaterThanToken      // >
+ts.SyntaxKind.LessThanToken         // <
+
+// Special
+ts.SyntaxKind.Identifier
+ts.SyntaxKind.EndOfFileToken
+ts.SyntaxKind.WhitespaceTrivia
+```
+
+## See Also
+
+- [Compiler API Overview](/api/compiler-api-overview)
+- [Parser API](/api/parser)
+- [SyntaxKind Reference](https://github.com/microsoft/TypeScript/blob/main/src/compiler/types.ts)

@@ -1,0 +1,279 @@
+---
+title: "Compiler Overview"
+description: "Understanding the TypeScript compilation pipeline and architecture"
+---
+
+## Compilation Pipeline
+
+The TypeScript compiler transforms TypeScript source code into JavaScript through a multi-stage pipeline. Each stage performs a specific role in the compilation process.
+
+### The Five Stages
+
+The compilation process flows through five main components:
+
+```mermaid
+graph LR
+    A[Scanner] --> B[Parser]
+    B --> C[Binder]
+    C --> D[Checker]
+    D --> E[Emitter]
+```
+
+<Steps>
+  <Step title="Scanner">
+    Breaks source text into tokens (`scanner.ts`)
+    
+    The scanner reads the raw source text and converts it into a stream of tokens:
+    
+    ```typescript
+    // From src/compiler/scanner.ts
+    export interface Scanner {
+        getToken(): SyntaxKind;
+        getTokenStart(): number;
+        getTokenEnd(): number;
+        getTokenText(): string;
+        scan(): SyntaxKind;
+    }
+    ```
+  </Step>
+  
+  <Step title="Parser">
+    Builds Abstract Syntax Tree (`parser.ts`)
+    
+    The parser consumes tokens from the scanner and constructs an AST:
+    
+    ```typescript
+    // The parser creates nodes like:
+    interface SourceFile extends Node {
+        statements: NodeArray<Statement>;
+        endOfFileToken: Token<SyntaxKind.EndOfFileToken>;
+    }
+    ```
+  </Step>
+  
+  <Step title="Binder">
+    Creates symbols and establishes scope (`binder.ts`)
+    
+    The binder walks the AST and creates symbols for declarations:
+    
+    ```typescript
+    // From src/compiler/binder.ts
+    import { bindSourceFile } from "./binder.ts";
+    
+    // Creates symbols and establishes:
+    // - Lexical environments
+    // - Control flow graphs
+    // - Symbol tables
+    ```
+  </Step>
+  
+  <Step title="Checker">
+    Performs type checking and semantic analysis (`checker.ts`)
+    
+    The type checker is the heart of TypeScript:
+    
+    ```typescript
+    // From src/compiler/checker.ts (line 1486)
+    export function createTypeChecker(host: TypeCheckerHost): TypeChecker {
+        // 3+ million bytes of type checking logic
+        // Handles type inference, compatibility, etc.
+    }
+    ```
+  </Step>
+  
+  <Step title="Emitter">
+    Generates JavaScript and declaration files (`emitter.ts`)
+    
+    The emitter produces the final output:
+    
+    ```typescript
+    // From src/compiler/emitter.ts (line 752)
+    export function emitFiles(
+        resolver: EmitResolver,
+        host: EmitHost,
+        targetSourceFile: SourceFile | undefined,
+        { scriptTransformers, declarationTransformers }: EmitTransformers,
+        emitOnly: boolean | EmitOnly | undefined
+    ): EmitResult
+    ```
+  </Step>
+</Steps>
+
+## Program Creation
+
+The compilation process begins with creating a `Program` object:
+
+```typescript
+// From src/compiler/program.ts (line 1499)
+export function createProgram(
+    rootNames: readonly string[],
+    options: CompilerOptions,
+    host?: CompilerHost,
+    oldProgram?: Program,
+    configFileParsingDiagnostics?: readonly Diagnostic[]
+): Program
+```
+
+### What a Program Does
+
+<CardGroup cols={2}>
+  <Card title="Source File Management" icon="file-code">
+    - Reads and parses all source files
+    - Manages file dependencies
+    - Handles module resolution
+  </Card>
+  
+  <Card title="Type Checking" icon="check-circle">
+    - Creates the type checker
+    - Performs semantic analysis
+    - Reports diagnostics
+  </Card>
+  
+  <Card title="Emit Coordination" icon="code">
+    - Coordinates JavaScript output
+    - Generates declaration files
+    - Produces source maps
+  </Card>
+  
+  <Card title="Incremental Builds" icon="clock">
+    - Reuses previous compilation state
+    - Tracks file changes
+    - Optimizes rebuild performance
+  </Card>
+</CardGroup>
+
+## Core Source Files
+
+The compiler is organized into focused modules:
+
+<AccordionGroup>
+  <Accordion title="scanner.ts (219KB)">
+    Lexical analysis and tokenization. Handles:
+    - Character-by-character scanning
+    - Token identification
+    - JSX and template literal parsing
+  </Accordion>
+  
+  <Accordion title="parser.ts (539KB)">
+    Syntax analysis and AST construction. Handles:
+    - Grammar rules
+    - Error recovery
+    - JSDoc comment parsing
+  </Accordion>
+  
+  <Accordion title="binder.ts (194KB)">
+    Symbol creation and scope establishment. Handles:
+    - Symbol table construction
+    - Control flow analysis
+    - Container and scope management
+  </Accordion>
+  
+  <Accordion title="checker.ts (3.15MB)">
+    Type checking and semantic analysis. Handles:
+    - Type inference
+    - Type compatibility
+    - Signature resolution
+    - Diagnostic generation
+  </Accordion>
+  
+  <Accordion title="emitter.ts (273KB)">
+    Code generation and output. Handles:
+    - JavaScript emission
+    - Declaration file generation
+    - Source map creation
+    - Transform application
+  </Accordion>
+</AccordionGroup>
+
+## Data Structures
+
+### Nodes
+
+Every element in TypeScript is represented as a `Node`:
+
+```typescript
+interface Node {
+    kind: SyntaxKind;
+    flags: NodeFlags;
+    parent: Node;
+    // Position information
+    pos: number;
+    end: number;
+}
+```
+
+### Symbols
+
+Symbols represent named declarations:
+
+```typescript
+interface Symbol {
+    flags: SymbolFlags;
+    name: string;
+    declarations?: Declaration[];
+    valueDeclaration?: Declaration;
+}
+```
+
+### Types
+
+Types are the semantic representation of values:
+
+```typescript
+interface Type {
+    flags: TypeFlags;
+    symbol?: Symbol;
+    // Type-specific properties
+}
+```
+
+## Diagnostic Flow
+
+<Info>
+Diagnostics (errors and warnings) can be generated at every stage of compilation.
+</Info>
+
+Different types of diagnostics:
+
+- **Syntactic**: Parser errors (missing semicolons, invalid syntax)
+- **Semantic**: Type checker errors (type mismatches, undefined variables)
+- **Declaration**: Issues in `.d.ts` generation
+- **Global**: Configuration and file system errors
+
+## Performance Considerations
+
+The compiler is optimized for incremental compilation:
+
+<CardGroup cols={2}>
+  <Card title="Lazy Evaluation" icon="hourglass">
+    Type checking is performed on-demand to avoid unnecessary work
+  </Card>
+  
+  <Card title="Caching" icon="database">
+    Previous compilation results are reused when files haven't changed
+  </Card>
+  
+  <Card title="Parallel Processing" icon="diagram-project">
+    Independent files can be processed concurrently
+  </Card>
+  
+  <Card title="Incremental Parsing" icon="rotate">
+    Parser reuses AST nodes from previous compilations
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Type Checking" icon="check" href="./type-checking">
+    Deep dive into how TypeScript validates types
+  </Card>
+  
+  <Card title="Module Resolution" icon="puzzle-piece" href="./module-resolution">
+    Learn how imports are resolved
+  </Card>
+  
+  <Card title="Emit" icon="file-export" href="./emit">
+    Understand JavaScript generation
+  </Card>
+</CardGroup>

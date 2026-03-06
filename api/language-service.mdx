@@ -1,0 +1,637 @@
+---
+title: LanguageService API
+description: Complete API reference for the TypeScript LanguageService interface
+---
+
+The `LanguageService` interface is the main entry point for editor tooling. It provides methods for completions, diagnostics, navigation, refactoring, and more.
+
+## Creating a Language Service
+
+<CodeGroup>
+```typescript Basic
+import * as ts from 'typescript';
+
+const service = ts.createLanguageService(
+  host,              // LanguageServiceHost
+  documentRegistry,  // Optional: DocumentRegistry
+  languageServiceMode // Optional: LanguageServiceMode
+);
+```
+
+```typescript With Options
+import * as ts from 'typescript';
+
+const registry = ts.createDocumentRegistry(
+  useCaseSensitiveFileNames,
+  currentDirectory
+);
+
+const service = ts.createLanguageService(
+  host,
+  registry,
+  ts.LanguageServiceMode.Semantic
+);
+```
+</CodeGroup>
+
+### Function Signature
+
+```typescript
+function createLanguageService(
+  host: LanguageServiceHost,
+  documentRegistry?: DocumentRegistry,
+  syntaxOnlyOrLanguageServiceMode?: boolean | LanguageServiceMode
+): LanguageService;
+```
+
+<ParamField path="host" type="LanguageServiceHost" required>
+  Provides file system access and compilation settings. Implement this interface to provide file content and compiler options.
+</ParamField>
+
+<ParamField path="documentRegistry" type="DocumentRegistry">
+  Optional. Caches parsed source files across Language Service instances.
+</ParamField>
+
+<ParamField path="syntaxOnlyOrLanguageServiceMode" type="boolean | LanguageServiceMode">
+  Optional. Controls whether to perform type checking:
+  - `true` / `LanguageServiceMode.Syntactic`: Syntax-only mode
+  - `false` / `LanguageServiceMode.Semantic`: Full semantic mode (default)
+  - `LanguageServiceMode.PartialSemantic`: Limited semantic analysis
+</ParamField>
+
+## LanguageService Interface
+
+### Lifecycle Methods
+
+<ResponseField name="cleanupSemanticCache" type="() => void">
+  Clears the semantic cache. Use this when restarting the language service or when compiler options change.
+  
+  ```typescript
+  service.cleanupSemanticCache();
+  ```
+</ResponseField>
+
+<ResponseField name="dispose" type="() => void">
+  Disposes the language service and releases resources.
+  
+  ```typescript
+  service.dispose();
+  ```
+</ResponseField>
+
+### Diagnostic Methods
+
+<ResponseField name="getSyntacticDiagnostics" type="(fileName: string) => DiagnosticWithLocation[]">
+  Gets syntax errors in a file. These are fast to compute and don't require type information.
+  
+  ```typescript
+  const errors = service.getSyntacticDiagnostics('app.ts');
+  errors.forEach(error => {
+    const { line, character } = error.file!.getLineAndCharacterOfPosition(
+      error.start!
+    );
+    console.log(`${error.file!.fileName}:${line}:${character}`);
+    console.log(`  ${error.messageText}`);
+  });
+  ```
+  
+  <Expandable title="Example Output">
+    ```
+    app.ts:5:10
+      '}' expected.
+    app.ts:12:5
+      Declaration or statement expected.
+    ```
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="getSemanticDiagnostics" type="(fileName: string) => Diagnostic[]">
+  Gets type system errors in a file. The first call may be slow as it initializes the type checker.
+  
+  ```typescript
+  const errors = service.getSemanticDiagnostics('app.ts');
+  errors.forEach(error => {
+    if (error.file) {
+      const { line, character } = error.file.getLineAndCharacterOfPosition(
+        error.start!
+      );
+      console.log(`${error.file.fileName}:${line}:${character}`);
+    }
+    console.log(`  ${error.messageText}`);
+  });
+  ```
+  
+  <Expandable title="Example Output">
+    ```
+    app.ts:10:15
+      Type 'string' is not assignable to type 'number'.
+    app.ts:15:8
+      Property 'foo' does not exist on type 'Bar'.
+    ```
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="getSuggestionDiagnostics" type="(fileName: string) => DiagnosticWithLocation[]">
+  Gets suggestion diagnostics that proactively suggest refactors or improvements.
+  
+  ```typescript
+  const suggestions = service.getSuggestionDiagnostics('app.ts');
+  // Example: "This may be converted to an async function"
+  ```
+</ResponseField>
+
+<ResponseField name="getCompilerOptionsDiagnostics" type="() => Diagnostic[]">
+  Gets diagnostics related to the compiler options and program configuration.
+  
+  ```typescript
+  const configErrors = service.getCompilerOptionsDiagnostics();
+  // Example: "Option 'target' must be one of: ..."
+  ```
+</ResponseField>
+
+### Completion Methods
+
+<ResponseField name="getCompletionsAtPosition" type="(fileName: string, position: number, options?: GetCompletionsAtPositionOptions, formattingSettings?: FormatCodeSettings) => CompletionInfo | undefined">
+  Gets completion suggestions at a specific position. This powers IntelliSense in editors.
+  
+  ```typescript
+  const completions = service.getCompletionsAtPosition(
+    'app.ts',
+    position,
+    {
+      includeCompletionsForModuleExports: true,
+      includeCompletionsWithInsertText: true,
+      includeAutomaticOptionalChainCompletions: true
+    }
+  );
+  
+  if (completions) {
+    completions.entries.forEach(entry => {
+      console.log(`${entry.name} (${entry.kind})`);
+    });
+  }
+  ```
+  
+  See [Completions API](/api/completions) for detailed documentation.
+</ResponseField>
+
+<ResponseField name="getCompletionEntryDetails" type="(fileName: string, position: number, entryName: string, formatOptions: FormatCodeOptions | undefined, source: string | undefined, preferences: UserPreferences | undefined, data: CompletionEntryData | undefined) => CompletionEntryDetails | undefined">
+  Gets extended details for a completion entry, including documentation and full signature.
+  
+  ```typescript
+  const details = service.getCompletionEntryDetails(
+    'app.ts',
+    position,
+    'functionName',
+    formatOptions,
+    undefined, // source
+    preferences,
+    undefined  // data
+  );
+  
+  if (details) {
+    console.log(details.displayParts.map(p => p.text).join(''));
+    console.log(details.documentation?.map(d => d.text).join(''));
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="getCompletionEntrySymbol" type="(fileName: string, position: number, name: string, source: string | undefined) => Symbol | undefined">
+  Gets the symbol for a completion entry.
+  
+  ```typescript
+  const symbol = service.getCompletionEntrySymbol(
+    'app.ts',
+    position,
+    'myFunction',
+    undefined
+  );
+  ```
+</ResponseField>
+
+### Quick Info & Signature Help
+
+<ResponseField name="getQuickInfoAtPosition" type="(fileName: string, position: number, maximumLength?: number) => QuickInfo | undefined">
+  Gets hover information at a position. This powers hover tooltips in editors.
+  
+  ```typescript
+  const quickInfo = service.getQuickInfoAtPosition('app.ts', position);
+  
+  if (quickInfo) {
+    const description = quickInfo.displayParts
+      ?.map(p => p.text)
+      .join('');
+    const docs = quickInfo.documentation
+      ?.map(d => d.text)
+      .join('');
+      
+    console.log(description);
+    console.log(docs);
+  }
+  ```
+  
+  <Expandable title="Example Output">
+    ```typescript
+    function add(a: number, b: number): number
+    
+    Adds two numbers together.
+    @param a - The first number
+    @param b - The second number
+    @returns The sum
+    ```
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="getSignatureHelpItems" type="(fileName: string, position: number, options: SignatureHelpItemsOptions | undefined) => SignatureHelpItems | undefined">
+  Gets signature help for function calls. This powers parameter hints in editors.
+  
+  ```typescript
+  const signatureHelp = service.getSignatureHelpItems(
+    'app.ts',
+    position,
+    { triggerReason: { kind: 'invoked' } }
+  );
+  
+  if (signatureHelp) {
+    const item = signatureHelp.items[signatureHelp.selectedItemIndex];
+    console.log(item.prefixDisplayParts.map(p => p.text).join(''));
+  }
+  ```
+</ResponseField>
+
+### Navigation Methods
+
+<ResponseField name="getDefinitionAtPosition" type="(fileName: string, position: number) => DefinitionInfo[] | undefined">
+  Gets the definition(s) of a symbol at a position. Powers "Go to Definition".
+  
+  ```typescript
+  const definitions = service.getDefinitionAtPosition('app.ts', position);
+  
+  definitions?.forEach(def => {
+    console.log(`${def.fileName}:${def.textSpan.start}`);
+  });
+  ```
+  
+  See [Navigation API](/api/navigation) for more details.
+</ResponseField>
+
+<ResponseField name="getDefinitionAndBoundSpan" type="(fileName: string, position: number) => DefinitionInfoAndBoundSpan | undefined">
+  Gets definitions and the span of the identifier at the position.
+  
+  ```typescript
+  const result = service.getDefinitionAndBoundSpan('app.ts', position);
+  
+  if (result) {
+    console.log('Identifier span:', result.textSpan);
+    result.definitions?.forEach(def => {
+      console.log(`Definition: ${def.fileName}:${def.textSpan.start}`);
+    });
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="getTypeDefinitionAtPosition" type="(fileName: string, position: number) => DefinitionInfo[] | undefined">
+  Gets the type definition(s) of a symbol. Useful for navigating to interface or type alias definitions.
+  
+  ```typescript
+  const typeDefs = service.getTypeDefinitionAtPosition('app.ts', position);
+  // Navigate to the type definition, not the variable declaration
+  ```
+</ResponseField>
+
+<ResponseField name="getImplementationAtPosition" type="(fileName: string, position: number) => ImplementationLocation[] | undefined">
+  Gets implementations of an interface or abstract class.
+  
+  ```typescript
+  const implementations = service.getImplementationAtPosition(
+    'app.ts',
+    position
+  );
+  
+  implementations?.forEach(impl => {
+    console.log(`Implementation: ${impl.fileName}`);
+  });
+  ```
+</ResponseField>
+
+<ResponseField name="getReferencesAtPosition" type="(fileName: string, position: number) => ReferenceEntry[] | undefined">
+  Finds all references to a symbol.
+  
+  ```typescript
+  const references = service.getReferencesAtPosition('app.ts', position);
+  
+  references?.forEach(ref => {
+    console.log(`${ref.fileName}:${ref.textSpan.start}`);
+  });
+  ```
+</ResponseField>
+
+<ResponseField name="findReferences" type="(fileName: string, position: number) => ReferencedSymbol[] | undefined">
+  Finds references grouped by definition.
+  
+  ```typescript
+  const referenced = service.findReferences('app.ts', position);
+  
+  referenced?.forEach(group => {
+    console.log('Definition:', group.definition.name);
+    group.references.forEach(ref => {
+      console.log(`  ${ref.fileName}:${ref.textSpan.start}`);
+    });
+  });
+  ```
+</ResponseField>
+
+### Rename
+
+<ResponseField name="getRenameInfo" type="(fileName: string, position: number, preferences: UserPreferences) => RenameInfo">
+  Checks if rename is available at a position.
+  
+  ```typescript
+  const renameInfo = service.getRenameInfo('app.ts', position, preferences);
+  
+  if (renameInfo.canRename) {
+    console.log(`Can rename: ${renameInfo.displayName}`);
+  } else {
+    console.log(`Cannot rename: ${renameInfo.localizedErrorMessage}`);
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="findRenameLocations" type="(fileName: string, position: number, findInStrings: boolean, findInComments: boolean, preferences: UserPreferences) => RenameLocation[] | undefined">
+  Finds all locations that will be affected by a rename.
+  
+  ```typescript
+  const locations = service.findRenameLocations(
+    'app.ts',
+    position,
+    false, // findInStrings
+    false, // findInComments
+    preferences
+  );
+  
+  locations?.forEach(loc => {
+    console.log(`${loc.fileName}:${loc.textSpan.start}`);
+  });
+  ```
+</ResponseField>
+
+### Refactoring
+
+<ResponseField name="getApplicableRefactors" type="(fileName: string, positionOrRange: number | TextRange, preferences: UserPreferences | undefined, triggerReason?: RefactorTriggerReason, kind?: string, includeInteractiveActions?: boolean) => ApplicableRefactorInfo[]">
+  Gets available refactorings at a position or range.
+  
+  ```typescript
+  const refactors = service.getApplicableRefactors(
+    'app.ts',
+    { pos: start, end },
+    preferences,
+    { kind: 'invoked' }
+  );
+  
+  refactors.forEach(refactor => {
+    console.log(`${refactor.name}: ${refactor.description}`);
+    refactor.actions.forEach(action => {
+      console.log(`  - ${action.name}: ${action.description}`);
+    });
+  });
+  ```
+</ResponseField>
+
+<ResponseField name="getEditsForRefactor" type="(fileName: string, formatOptions: FormatCodeSettings, positionOrRange: number | TextRange, refactorName: string, actionName: string, preferences: UserPreferences | undefined, interactiveRefactorArguments?: InteractiveRefactorArguments) => RefactorEditInfo | undefined">
+  Gets the text edits for a specific refactoring.
+  
+  ```typescript
+  const edits = service.getEditsForRefactor(
+    'app.ts',
+    formatOptions,
+    { pos: start, end },
+    'Extract Function',
+    'function_scope_0',
+    preferences
+  );
+  
+  if (edits) {
+    applyFileTextChanges(edits.edits);
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="organizeImports" type="(args: OrganizeImportsArgs, formatOptions: FormatCodeSettings, preferences: UserPreferences | undefined) => FileTextChanges[]">
+  Organizes imports in a file.
+  
+  ```typescript
+  const changes = service.organizeImports(
+    {
+      type: 'file',
+      fileName: 'app.ts',
+      mode: ts.OrganizeImportsMode.All
+    },
+    formatOptions,
+    preferences
+  );
+  
+  applyFileTextChanges(changes);
+  ```
+</ResponseField>
+
+### Code Fixes
+
+<ResponseField name="getCodeFixesAtPosition" type="(fileName: string, start: number, end: number, errorCodes: number[], formatOptions: FormatCodeSettings, preferences: UserPreferences) => CodeFixAction[]">
+  Gets available code fixes for diagnostics at a position.
+  
+  ```typescript
+  const fixes = service.getCodeFixesAtPosition(
+    'app.ts',
+    start,
+    end,
+    [2304], // Error code for "Cannot find name"
+    formatOptions,
+    preferences
+  );
+  
+  fixes.forEach(fix => {
+    console.log(fix.description);
+  });
+  ```
+</ResponseField>
+
+<ResponseField name="getSupportedCodeFixes" type="(fileName?: string) => string[]">
+  Gets all supported code fix error codes.
+  
+  ```typescript
+  const supported = service.getSupportedCodeFixes();
+  console.log(supported); // ['2304', '2307', ...]
+  ```
+</ResponseField>
+
+### Formatting
+
+<ResponseField name="getFormattingEditsForRange" type="(fileName: string, start: number, end: number, options: FormatCodeSettings) => TextChange[]">
+  Formats a range of text.
+  
+  ```typescript
+  const edits = service.getFormattingEditsForRange(
+    'app.ts',
+    start,
+    end,
+    {
+      indentSize: 2,
+      tabSize: 2,
+      insertSpaceAfterCommaDelimiter: true
+    }
+  );
+  
+  applyTextChanges(edits);
+  ```
+</ResponseField>
+
+<ResponseField name="getFormattingEditsForDocument" type="(fileName: string, options: FormatCodeSettings) => TextChange[]">
+  Formats an entire document.
+  
+  ```typescript
+  const edits = service.getFormattingEditsForDocument(
+    'app.ts',
+    formatOptions
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="getFormattingEditsAfterKeystroke" type="(fileName: string, position: number, key: string, options: FormatCodeSettings) => TextChange[]">
+  Gets formatting edits after typing a character (e.g., ';', '}', Enter).
+  
+  ```typescript
+  const edits = service.getFormattingEditsAfterKeystroke(
+    'app.ts',
+    position,
+    '}',
+    formatOptions
+  );
+  ```
+</ResponseField>
+
+### Program Access
+
+<ResponseField name="getProgram" type="() => Program | undefined">
+  Gets the current TypeScript Program.
+  
+  ```typescript
+  const program = service.getProgram();
+  if (program) {
+    const typeChecker = program.getTypeChecker();
+    const sourceFiles = program.getSourceFiles();
+  }
+  ```
+</ResponseField>
+
+## Example: Complete Editor Integration
+
+```typescript Editor.ts
+import * as ts from 'typescript';
+import * as fs from 'fs';
+
+class TypeScriptEditor {
+  private service: ts.LanguageService;
+  private files = new Map<string, string>();
+  private versions = new Map<string, number>();
+
+  constructor(files: string[]) {
+    // Initialize file versions
+    files.forEach(file => {
+      this.files.set(file, fs.readFileSync(file, 'utf8'));
+      this.versions.set(file, 0);
+    });
+
+    // Create language service host
+    const host: ts.LanguageServiceHost = {
+      getScriptFileNames: () => Array.from(this.files.keys()),
+      getScriptVersion: (fileName) => 
+        this.versions.get(fileName)?.toString() || '0',
+      getScriptSnapshot: (fileName) => {
+        const content = this.files.get(fileName);
+        return content !== undefined
+          ? ts.ScriptSnapshot.fromString(content)
+          : undefined;
+      },
+      getCurrentDirectory: () => process.cwd(),
+      getCompilationSettings: () => ({
+        target: ts.ScriptTarget.ES2020,
+        module: ts.ModuleKind.ESNext,
+        moduleResolution: ts.ModuleResolutionKind.NodeNext
+      }),
+      getDefaultLibFileName: (options) => 
+        ts.getDefaultLibFilePath(options),
+      fileExists: (path) => fs.existsSync(path),
+      readFile: (path) => fs.readFileSync(path, 'utf8'),
+      readDirectory: ts.sys.readDirectory
+    };
+
+    this.service = ts.createLanguageService(host);
+  }
+
+  updateFile(fileName: string, content: string) {
+    this.files.set(fileName, content);
+    this.versions.set(
+      fileName,
+      (this.versions.get(fileName) || 0) + 1
+    );
+  }
+
+  getDiagnostics(fileName: string) {
+    return [
+      ...this.service.getSyntacticDiagnostics(fileName),
+      ...this.service.getSemanticDiagnostics(fileName)
+    ];
+  }
+
+  getCompletions(fileName: string, position: number) {
+    return this.service.getCompletionsAtPosition(
+      fileName,
+      position,
+      {
+        includeCompletionsForModuleExports: true,
+        includeCompletionsWithInsertText: true
+      }
+    );
+  }
+
+  getQuickInfo(fileName: string, position: number) {
+    return this.service.getQuickInfoAtPosition(fileName, position);
+  }
+
+  findReferences(fileName: string, position: number) {
+    return this.service.findReferences(fileName, position);
+  }
+
+  dispose() {
+    this.service.dispose();
+  }
+}
+
+// Usage
+const editor = new TypeScriptEditor(['app.ts', 'utils.ts']);
+
+// Check for errors
+const diagnostics = editor.getDiagnostics('app.ts');
+console.log(`Found ${diagnostics.length} errors`);
+
+// Get completions
+const completions = editor.getCompletions('app.ts', 100);
+completions?.entries.forEach(e => console.log(e.name));
+
+// Cleanup
+editor.dispose();
+```
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Completions API" icon="sparkles" href="./completions">
+    Detailed completion API reference
+  </Card>
+  <Card title="Diagnostics API" icon="triangle-exclamation" href="./diagnostics">
+    Error reporting and diagnostics
+  </Card>
+  <Card title="Navigation API" icon="compass" href="./navigation">
+    Go to definition and find references
+  </Card>
+</CardGroup>

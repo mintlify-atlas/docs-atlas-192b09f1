@@ -1,0 +1,421 @@
+---
+title: "Type Checking"
+description: "How TypeScript validates types and performs semantic analysis"
+---
+
+## The Type Checker
+
+The type checker is the largest and most complex component of the TypeScript compiler. Located in `src/compiler/checker.ts` (over 3.1 MB), it performs semantic analysis and type validation.
+
+### Creating the Type Checker
+
+```typescript
+// From src/compiler/checker.ts (line 1486)
+export function createTypeChecker(host: TypeCheckerHost): TypeChecker {
+    // Deferred diagnostics for lazy evaluation
+    var deferredDiagnosticsCallbacks: (() => void)[] = [];
+
+    var addLazyDiagnostic = (arg: () => void) => {
+        deferredDiagnosticsCallbacks.push(arg);
+    };
+
+    // Type checking proceeds lazily to improve performance
+    // ...
+}
+```
+
+<Note>
+The type checker uses `var` instead of `let`/`const` to avoid Temporal Dead Zone (TDZ) runtime checks, improving performance. See [TypeScript Issue #52924](https://github.com/microsoft/TypeScript/issues/52924).
+</Note>
+
+## Type Checker Responsibilities
+
+The checker performs multiple critical functions:
+
+<CardGroup cols={2}>
+  <Card title="Type Inference" icon="brain">
+    Determines types of expressions without explicit annotations
+  </Card>
+  
+  <Card title="Type Compatibility" icon="equals">
+    Checks if one type can be assigned to another
+  </Card>
+  
+  <Card title="Signature Resolution" icon="signature">
+    Resolves overloaded function calls
+  </Card>
+  
+  <Card title="Flow Analysis" icon="diagram-project">
+    Tracks type narrowing through control flow
+  </Card>
+</CardGroup>
+
+## How Type Checking Works
+
+### Step 1: Symbol Resolution
+
+The checker first resolves all symbols created by the binder:
+
+```typescript
+// Example from checker.ts
+function getTypeOfSymbol(symbol: Symbol): Type {
+    // Resolve the type associated with a symbol
+    if (symbol.flags & SymbolFlags.Variable) {
+        return getTypeOfVariableOrParameterOrProperty(symbol);
+    }
+    if (symbol.flags & SymbolFlags.Function) {
+        return getTypeOfFuncClassEnumModule(symbol);
+    }
+    // ... many more cases
+}
+```
+
+### Step 2: Type Computation
+
+Types are computed recursively from AST nodes:
+
+```typescript
+// Simplified example of type checking process
+function getTypeFromTypeNode(node: TypeNode): Type {
+    switch (node.kind) {
+        case SyntaxKind.StringKeyword:
+            return stringType;
+        case SyntaxKind.NumberKeyword:
+            return numberType;
+        case SyntaxKind.TypeReference:
+            return getTypeFromTypeReference(node);
+        case SyntaxKind.UnionType:
+            return getUnionType(map(node.types, getTypeFromTypeNode));
+        // ... hundreds more cases
+    }
+}
+```
+
+### Step 3: Compatibility Checking
+
+The checker validates assignments using structural type comparison:
+
+```typescript
+// Type compatibility example
+interface Point { x: number; y: number; }
+interface Named { name: string; }
+
+let point: Point = { x: 0, y: 0 };
+let named: Named = { name: "origin" };
+
+// The checker validates this assignment
+point = { x: 1, y: 2 }; // ✓ Compatible
+
+// And rejects this one
+point = named; // ✗ Error: Types have no properties in common
+```
+
+## Type System Features
+
+### Structural Typing
+
+TypeScript uses structural (duck) typing:
+
+```typescript
+interface Drawable {
+    draw(): void;
+}
+
+class Circle {
+    draw() { console.log("Drawing circle"); }
+}
+
+class Square {
+    draw() { console.log("Drawing square"); }
+}
+
+// Both are compatible with Drawable
+const drawable: Drawable = new Circle(); // ✓
+const drawable2: Drawable = new Square(); // ✓
+```
+
+<Info>
+The checker determines compatibility by comparing the structure (shape) of types, not their names.
+</Info>
+
+### Union Types
+
+The checker handles union types by ensuring operations are valid on all constituents:
+
+```typescript
+function processValue(value: string | number) {
+    // Checker allows operations valid on both types
+    console.log(value.toString()); // ✓
+    
+    // Checker rejects operations not valid on all types
+    console.log(value.toUpperCase()); // ✗ Error: Property 'toUpperCase' does not exist on type 'number'
+}
+```
+
+### Type Narrowing
+
+Control flow analysis narrows types within conditional branches:
+
+```typescript
+function example(x: string | number) {
+    if (typeof x === "string") {
+        // Type narrowed to string
+        console.log(x.toUpperCase()); // ✓
+    } else {
+        // Type narrowed to number
+        console.log(x.toFixed(2)); // ✓
+    }
+}
+```
+
+### Generic Types
+
+The checker performs type parameter substitution:
+
+```typescript
+function identity<T>(value: T): T {
+    return value;
+}
+
+// Checker infers T = number
+const num = identity(42);
+
+// Checker infers T = string
+const str = identity("hello");
+```
+
+## Type Checking Algorithm
+
+<Steps>
+  <Step title="Get Type of Source">
+    Determine the type of the source expression
+    
+    ```typescript
+    const source = "hello"; // Type: string
+    ```
+  </Step>
+  
+  <Step title="Get Type of Target">
+    Determine the type of the target
+    
+    ```typescript
+    let target: string | number; // Type: string | number
+    ```
+  </Step>
+  
+  <Step title="Check Assignability">
+    Verify source type is assignable to target type
+    
+    ```typescript
+    target = source; // ✓ string is assignable to string | number
+    ```
+  </Step>
+  
+  <Step title="Report Diagnostics">
+    Generate errors for incompatible assignments
+    
+    ```typescript
+    let num: number;
+    num = source; // ✗ Error: Type 'string' is not assignable to type 'number'
+    ```
+  </Step>
+</Steps>
+
+## Diagnostic Generation
+
+The checker creates detailed error messages:
+
+```typescript
+// From checker.ts - diagnostic creation
+function createDiagnosticForNode(
+    node: Node,
+    message: DiagnosticMessage,
+    ...args: DiagnosticArguments
+): DiagnosticWithLocation {
+    const sourceFile = getSourceFileOfNode(node);
+    const span = getErrorSpanForNode(sourceFile, node);
+    return createFileDiagnostic(
+        sourceFile,
+        span.start,
+        span.length,
+        message,
+        ...args
+    );
+}
+```
+
+### Diagnostic Categories
+
+<Tabs>
+  <Tab title="Type Errors">
+    ```typescript
+    let num: number = "hello";
+    // Error: Type 'string' is not assignable to type 'number'
+    ```
+  </Tab>
+  
+  <Tab title="Property Errors">
+    ```typescript
+    interface Point { x: number; y: number; }
+    const point: Point = { x: 0 };
+    // Error: Property 'y' is missing in type '{ x: number; }'
+    ```
+  </Tab>
+  
+  <Tab title="Argument Errors">
+    ```typescript
+    function greet(name: string) { }
+    greet(42);
+    // Error: Argument of type 'number' is not assignable to parameter of type 'string'
+    ```
+  </Tab>
+  
+  <Tab title="Generic Errors">
+    ```typescript
+    function first<T extends { length: number }>(arr: T): T[0] {
+        return arr[0];
+    }
+    first(42);
+    // Error: Type 'number' does not satisfy the constraint '{ length: number }'
+    ```
+  </Tab>
+</Tabs>
+
+## Performance Optimizations
+
+The type checker employs several optimization strategies:
+
+### Lazy Evaluation
+
+<Info>
+Type checking is deferred until needed, avoiding work on unused code paths.
+</Info>
+
+```typescript
+// From checker.ts
+var addLazyDiagnostic = (arg: () => void) => {
+    deferredDiagnosticsCallbacks.push(arg);
+};
+```
+
+### Type Caching
+
+Types are computed once and cached:
+
+```typescript
+// Computed types are stored on symbols
+interface Symbol {
+    type?: Type; // Cached type
+}
+```
+
+### Signature Caching
+
+Resolved function signatures are cached to avoid recomputation:
+
+```typescript
+function getResolvedSignature(
+    node: CallLikeExpression,
+    candidatesOutArray?: Signature[],
+    checkMode?: CheckMode
+): Signature {
+    // Check cache first
+    // Compute and cache if not found
+}
+```
+
+## Internal Type Representations
+
+### Type Flags
+
+```typescript
+enum TypeFlags {
+    Any = 1 << 0,
+    String = 1 << 1,
+    Number = 1 << 2,
+    Boolean = 1 << 3,
+    Enum = 1 << 4,
+    Void = 1 << 5,
+    Undefined = 1 << 6,
+    Null = 1 << 7,
+    // ... many more
+}
+```
+
+### Type Hierarchy
+
+```typescript
+interface Type {
+    flags: TypeFlags;
+    symbol?: Symbol;
+}
+
+interface ObjectType extends Type {
+    objectFlags: ObjectFlags;
+}
+
+interface InterfaceType extends ObjectType {
+    typeParameters: TypeParameter[] | undefined;
+}
+```
+
+## Advanced Features
+
+<AccordionGroup>
+  <Accordion title="Conditional Types">
+    The checker evaluates conditional types by checking constraints:
+    
+    ```typescript
+    type IsString<T> = T extends string ? true : false;
+    
+    type A = IsString<"hello">; // true
+    type B = IsString<42>;      // false
+    ```
+  </Accordion>
+  
+  <Accordion title="Mapped Types">
+    The checker transforms types by mapping over properties:
+    
+    ```typescript
+    type Readonly<T> = {
+        readonly [P in keyof T]: T[P];
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Template Literal Types">
+    The checker manipulates string literal types:
+    
+    ```typescript
+    type Greeting<T extends string> = `Hello ${T}`;
+    
+    type Welcome = Greeting<"World">; // "Hello World"
+    ```
+  </Accordion>
+  
+  <Accordion title="Variance Checking">
+    The checker tracks covariance and contravariance:
+    
+    ```typescript
+    interface Producer<out T> { // Covariant
+        produce(): T;
+    }
+    
+    interface Consumer<in T> { // Contravariant
+        consume(value: T): void;
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Compiler Overview" icon="book" href="./overview">
+    Learn about the full compilation pipeline
+  </Card>
+  
+  <Card title="Module Resolution" icon="puzzle-piece" href="./module-resolution">
+    Understand how imports are resolved
+  </Card>
+</CardGroup>

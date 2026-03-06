@@ -1,0 +1,199 @@
+---
+title: Installation
+description: Install TypeScript using npm, yarn, pnpm, or bun
+---
+
+TypeScript is a language for application-scale JavaScript development. It adds optional types to JavaScript that support tools for large-scale applications for any browser, host, or OS.
+
+## Requirements
+
+TypeScript requires Node.js version **14.17 or higher** to run. Check your Node.js version:
+
+```bash
+node --version
+```
+
+If you need to upgrade Node.js, visit [nodejs.org](https://nodejs.org/).
+
+## Install TypeScript
+
+<Steps>
+  <Step title="Choose your package manager">
+    Install TypeScript globally or as a dev dependency in your project:
+
+    <CodeGroup>
+      ```bash npm
+      npm install -D typescript
+      ```
+
+      ```bash yarn
+      yarn add -D typescript
+      ```
+
+      ```bash pnpm
+      pnpm add -D typescript
+      ```
+
+      ```bash bun
+      bun add -D typescript
+      ```
+    </CodeGroup>
+
+    <Note>
+      Installing as a dev dependency (`-D` flag) is recommended for project-specific TypeScript versions. For global installation, use `npm install -g typescript`.
+    </Note>
+  </Step>
+
+  <Step title="Verify installation">
+    Confirm TypeScript is installed correctly:
+
+    ```bash
+    npx tsc --version
+    ```
+
+    You should see output like:
+
+    ```
+    Version 6.0.0
+    ```
+  </Step>
+</Steps>
+
+## Nightly Builds
+
+Get the latest features and bug fixes by installing nightly builds:
+
+<CodeGroup>
+  ```bash npm
+  npm install -D typescript@next
+  ```
+
+  ```bash yarn
+  yarn add -D typescript@next
+  ```
+
+  ```bash pnpm
+  pnpm add -D typescript@next
+  ```
+
+  ```bash bun
+  bun add -D typescript@next
+  ```
+</CodeGroup>
+
+<Warning>
+  Nightly builds contain experimental features and may be unstable. Use them for testing new features, not production environments.
+</Warning>
+
+## What Gets Installed
+
+When you install TypeScript, you get two main command-line tools:
+
+<CardGroup cols={2}>
+  <Card title="tsc" icon="code">
+    The TypeScript compiler that transforms `.ts` files into JavaScript
+  </Card>
+  <Card title="tsserver" icon="server">
+    The TypeScript language server for editor support and tooling
+  </Card>
+</CardGroup>
+
+Both tools are available in the `bin/` directory of the installed package:
+
+- `bin/tsc` - TypeScript compiler
+- `bin/tsserver` - Language server for IDE integration
+
+## Global Installation
+
+For system-wide access to TypeScript commands:
+
+```bash
+npm install -g typescript
+```
+
+After global installation, you can use `tsc` directly without `npx`:
+
+```bash
+tsc --version
+tsc myfile.ts
+```
+
+<Tip>
+  Project-local installations (dev dependencies) are preferred over global installations to ensure consistent TypeScript versions across team members and CI/CD environments.
+</Tip>
+
+## Updating TypeScript
+
+Keep TypeScript up to date to get the latest language features and improvements:
+
+<CodeGroup>
+  ```bash npm
+  npm update typescript
+  ```
+
+  ```bash yarn
+  yarn upgrade typescript
+  ```
+
+  ```bash pnpm
+  pnpm update typescript
+  ```
+
+  ```bash bun
+  bun update typescript
+  ```
+</CodeGroup>
+
+To upgrade to a specific version:
+
+```bash
+npm install -D typescript@6.0.0
+```
+
+## Troubleshooting
+
+### Command not found
+
+If `tsc` is not recognized after installation:
+
+1. **Use npx** for local installations:
+   ```bash
+   npx tsc --version
+   ```
+
+2. **Check PATH** for global installations:
+   ```bash
+   npm config get prefix
+   ```
+   Ensure this directory is in your system PATH.
+
+3. **Reinstall TypeScript**:
+   ```bash
+   npm uninstall typescript
+   npm install -D typescript
+   ```
+
+### Version mismatch
+
+If different versions appear in global vs local installations:
+
+```bash
+# Check local version
+npx tsc --version
+
+# Check global version
+tsc --version
+```
+
+Always use `npx tsc` in projects to use the local version.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Create your first TypeScript project
+  </Card>
+  <Card title="tsconfig.json" icon="gear" href="/config/tsconfig-json">
+    Configure compiler options
+  </Card>
+</CardGroup>

@@ -1,0 +1,180 @@
+---
+title: "Compiler API Overview"
+description: "Overview of the TypeScript Compiler API for programmatic access"
+---
+
+## Introduction
+
+The TypeScript Compiler API provides programmatic access to the TypeScript compiler, allowing you to analyze, transform, and compile TypeScript code in your applications. This API is used internally by the TypeScript compiler itself and is available for external use.
+
+## Key Components
+
+The Compiler API consists of several core components:
+
+### Program
+The `Program` is the central interface that represents a compilation unit. It manages a collection of source files and compiler options.
+
+### TypeChecker
+The `TypeChecker` provides semantic analysis capabilities, allowing you to query type information, resolve symbols, and perform type-related operations.
+
+### Scanner
+The `Scanner` performs lexical analysis, breaking source text into tokens.
+
+### Parser
+The `Parser` performs syntactic analysis, converting tokens into an Abstract Syntax Tree (AST).
+
+## Basic Usage
+
+Here's a complete example of using the Compiler API to create a program and analyze TypeScript code:
+
+```typescript
+import * as ts from 'typescript';
+
+// Create a program
+const program = ts.createProgram({
+  rootNames: ['./src/index.ts'],
+  options: {
+    target: ts.ScriptTarget.ES2020,
+    module: ts.ModuleKind.CommonJS,
+    strict: true
+  }
+});
+
+// Get the type checker
+const typeChecker = program.getTypeChecker();
+
+// Get source files
+const sourceFiles = program.getSourceFiles();
+
+// Iterate through source files
+for (const sourceFile of sourceFiles) {
+  if (!sourceFile.isDeclarationFile) {
+    console.log(`Processing: ${sourceFile.fileName}`);
+    
+    // Visit nodes in the AST
+    ts.forEachChild(sourceFile, (node) => {
+      if (ts.isFunctionDeclaration(node) && node.name) {
+        const symbol = typeChecker.getSymbolAtLocation(node.name);
+        if (symbol) {
+          const type = typeChecker.getTypeOfSymbolAtLocation(symbol, node);
+          console.log(`Function: ${symbol.name}`);
+          console.log(`Type: ${typeChecker.typeToString(type)}`);
+        }
+      }
+    });
+  }
+}
+
+// Get diagnostics
+const diagnostics = ts.getPreEmitDiagnostics(program);
+if (diagnostics.length > 0) {
+  console.log('Diagnostics:');
+  diagnostics.forEach(diagnostic => {
+    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n');
+    console.log(`  ${message}`);
+  });
+}
+
+// Emit JavaScript files
+const emitResult = program.emit();
+if (emitResult.emitSkipped) {
+  console.log('Emit was skipped');
+}
+```
+
+## Creating a Program
+
+There are two ways to create a program:
+
+### Using CreateProgramOptions
+
+```typescript
+const program = ts.createProgram({
+  rootNames: ['file1.ts', 'file2.ts'],
+  options: compilerOptions,
+  host: compilerHost, // optional
+  oldProgram: previousProgram, // optional, for incremental compilation
+  configFileParsingDiagnostics: [] // optional
+});
+```
+
+### Using Individual Parameters
+
+```typescript
+const program = ts.createProgram(
+  ['file1.ts', 'file2.ts'], // rootNames
+  compilerOptions,
+  compilerHost, // optional
+  oldProgram, // optional
+  configFileParsingDiagnostics // optional
+);
+```
+
+## Working with Source Files
+
+Source files are created using the `createSourceFile` function:
+
+```typescript
+const sourceFile = ts.createSourceFile(
+  'example.ts',
+  'const x: number = 42;',
+  ts.ScriptTarget.Latest,
+  true // setParentNodes
+);
+```
+
+## Compiler Host
+
+The `CompilerHost` interface abstracts file system operations. You can provide a custom host to control how files are read and written:
+
+```typescript
+const host: ts.CompilerHost = {
+  getSourceFile: (fileName, languageVersion) => {
+    const sourceText = ts.sys.readFile(fileName);
+    return sourceText !== undefined
+      ? ts.createSourceFile(fileName, sourceText, languageVersion)
+      : undefined;
+  },
+  getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options),
+  writeFile: (fileName, data) => ts.sys.writeFile(fileName, data),
+  getCurrentDirectory: () => ts.sys.getCurrentDirectory(),
+  getCanonicalFileName: (fileName) => ts.sys.useCaseSensitiveFileNames 
+    ? fileName 
+    : fileName.toLowerCase(),
+  useCaseSensitiveFileNames: () => ts.sys.useCaseSensitiveFileNames,
+  getNewLine: () => ts.sys.newLine,
+  fileExists: (fileName) => ts.sys.fileExists(fileName),
+  readFile: (fileName) => ts.sys.readFile(fileName),
+  directoryExists: (directoryName) => ts.sys.directoryExists(directoryName),
+  getDirectories: (path) => ts.sys.getDirectories(path)
+};
+
+const program = ts.createProgram({
+  rootNames: ['./src/index.ts'],
+  options: {},
+  host: host
+});
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Program API" icon="code" href="/api/program">
+    Learn about the Program interface and its methods
+  </Card>
+  <Card title="TypeChecker API" icon="magnifying-glass" href="/api/type-checker">
+    Explore type checking and semantic analysis
+  </Card>
+  <Card title="Scanner API" icon="scanner" href="/api/scanner">
+    Understand lexical analysis and tokenization
+  </Card>
+  <Card title="Parser API" icon="diagram-project" href="/api/parser">
+    Work with AST creation and parsing
+  </Card>
+</CardGroup>
+
+## Resources
+
+- [TypeScript Compiler API Documentation](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API)
+- [AST Viewer](https://ts-ast-viewer.com/)
+- [TypeScript Source Code](https://github.com/microsoft/TypeScript)

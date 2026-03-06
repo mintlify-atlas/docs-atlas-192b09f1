@@ -1,0 +1,328 @@
+---
+title: Building TypeScript
+description: Learn how to build the TypeScript compiler and related tools using hereby
+---
+
+## Build System Overview
+
+TypeScript uses [hereby](https://github.com/microsoft/hereby), a modern task runner, to orchestrate its build process. The build is defined in `Herebyfile.mjs` and compiles TypeScript source code using itself (bootstrapping).
+
+## Quick Build
+
+To build the entire compiler and services:
+
+```bash
+hereby local
+```
+
+This command:
+- Generates diagnostic messages from `src/compiler/diagnosticMessages.json`
+- Builds the compiler (`tsc`)
+- Builds the language service server (`tsserver`)
+- Builds the TypeScript library (`typescript.js`)
+- Generates library definition files (`lib.*.d.ts`)
+- Creates type definition bundles (`typescript.d.ts`)
+
+<Note>
+The first build takes several minutes. Subsequent builds are faster due to incremental compilation.
+</Note>
+
+## Common Build Tasks
+
+### Compiler Only
+
+Build just the command-line compiler:
+
+```bash
+hereby tsc
+```
+
+Output: `built/local/tsc.js`
+
+### Language Services
+
+Build the TypeScript API library:
+
+```bash
+hereby services
+```
+
+Output: `built/local/typescript.js`
+
+### Language Server
+
+Build the tsserver for editor integration:
+
+```bash
+hereby tsserver
+```
+
+Output: `built/local/tsserver.js`
+
+### Minimal Build
+
+Build only `tsc` and `tsserver` (fastest):
+
+```bash
+hereby min
+```
+
+## Build Configuration
+
+### Bundle Mode (Default)
+
+By default, hereby uses esbuild to create bundled outputs:
+
+```bash
+hereby local --bundle=true
+```
+
+**Advantages:**
+- Faster execution (single file)
+- Smaller output size
+- Production-like builds
+
+### Unbundled Mode
+
+For development with better source mapping:
+
+```bash
+hereby local --bundle=false
+```
+
+**Advantages:**
+- Easier debugging
+- Faster incremental builds
+- Better stack traces
+
+<Warning>
+Some tasks like `LKG` require bundle mode and will fail if `--bundle=false` is set.
+</Warning>
+
+### Skip Type Checking
+
+Speed up builds by skipping type checking:
+
+```bash
+hereby local --no-typecheck
+```
+
+<Tip>
+Use `--no-typecheck` during rapid iteration, but always run a full build before submitting PRs.
+</Tip>
+
+## Available Build Tasks
+
+<Tabs>
+  <Tab title="Primary Tasks">
+    ```bash
+    hereby local             # Full build (default)
+    hereby tsc               # Command-line compiler
+    hereby tsserver          # Language server
+    hereby services          # TypeScript API library
+    hereby min               # tsc + tsserver only
+    hereby tests             # Test infrastructure
+    ```
+  </Tab>
+  
+  <Tab title="Utility Tasks">
+    ```bash
+    hereby clean             # Delete built files
+    hereby lint              # Run ESLint
+    hereby format            # Format code with dprint
+    hereby LKG               # Update Last Known Good
+    hereby lib               # Build library files
+    ```
+  </Tab>
+  
+  <Tab title="Advanced Tasks">
+    ```bash
+    hereby generate-diagnostics  # Generate diagnostic codes
+    hereby baseline-accept       # Update test baselines
+    hereby diff                  # Compare baselines
+    hereby check-format          # Verify formatting
+    hereby knip                  # Check for unused code
+    ```
+  </Tab>
+</Tabs>
+
+View all available tasks:
+
+```bash
+hereby --tasks
+```
+
+## Watch Mode
+
+<Warning>
+Watch mode is experimental and may not work as expected. Use at your own risk.
+</Warning>
+
+Automatically rebuild on file changes:
+
+```bash
+# Watch full build
+hereby watch-local
+
+# Watch minimal build
+hereby watch-min
+
+# Watch specific components
+hereby watch-tsc
+hereby watch-services
+hereby watch-tsserver
+```
+
+## Build Outputs
+
+### Directory Structure
+
+```
+built/local/
+├── tsc.js                    # Compiler CLI
+├── _tsc.js                   # Compiler CLI (unwrapped)
+├── tsserver.js               # Language server
+├── _tsserver.js              # Language server (unwrapped)
+├── typescript.js             # Public API
+├── typescript.d.ts           # Public API types
+├── typescript.internal.d.ts  # Internal API types
+├── tsserverlibrary.js        # Language service library
+├── tsserverlibrary.d.ts      # Language service types
+├── typingsInstaller.js       # Automatic type acquisition
+├── watchGuard.js             # File watching helper
+├── lib.*.d.ts                # Standard library types
+└── *.js.map                  # Source maps
+```
+
+### Compile Cache Optimization
+
+Node.js 23+ uses module compilation caching. TypeScript generates shim files for:
+
+- `built/local/tsc.js` → wraps `_tsc.js` with cache enablement
+- `built/local/tsserver.js` → wraps `_tsserver.js` with cache enablement
+- `built/local/typingsInstaller.js` → wraps `_typingsInstaller.js`
+
+This improves startup performance on supported Node versions.
+
+## Library Files
+
+TypeScript's standard library definitions are built from sources:
+
+```bash
+hereby lib
+```
+
+Sources: `src/lib/*.d.ts`  
+Outputs: `built/local/lib.*.d.ts`
+
+The `src/lib/libs.json` file defines which libraries are built and their output names.
+
+<Warning>
+`src/lib/dom.generated.d.ts` and `src/lib/webworker.generated.d.ts` are auto-generated. To modify them, contribute to [TSJS-lib-generator](https://github.com/Microsoft/TSJS-lib-generator).
+</Warning>
+
+## Last Known Good (LKG)
+
+The LKG is a stable compiler snapshot used to bootstrap builds:
+
+```bash
+hereby LKG
+```
+
+This copies `built/local/*` to `lib/`, replacing the bootstrap compiler.
+
+<Warning>
+**Only run this command when the built compiler is stable!** A broken LKG prevents building from source.
+</Warning>
+
+## Diagnostic Messages
+
+TypeScript's error messages are defined in JSON:
+
+```bash
+hereby generate-diagnostics
+```
+
+**Input:** `src/compiler/diagnosticMessages.json`  
+**Outputs:**
+- `src/compiler/diagnosticInformationMap.generated.ts`
+- `src/compiler/diagnosticMessages.generated.json`
+
+After modifying diagnostic messages, always run this task before building.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Build fails with 'hereby: command not found'">
+    Install hereby globally:
+    
+    ```bash
+    npm install -g hereby
+    ```
+  </Accordion>
+  
+  <Accordion title="Out of memory during build">
+    Increase Node.js memory:
+    
+    ```bash
+    export NODE_OPTIONS="--max-old-space-size=8192"
+    hereby local
+    ```
+  </Accordion>
+  
+  <Accordion title="Build is very slow">
+    Try these optimizations:
+    
+    - Use `hereby min` instead of `hereby local`
+    - Add `--no-typecheck` for faster iteration
+    - Use `--bundle=true` (default) for faster execution
+    - Close other applications to free memory
+  </Accordion>
+  
+  <Accordion title="Changes not reflected in build">
+    Clean and rebuild:
+    
+    ```bash
+    hereby clean
+    hereby local
+    ```
+  </Accordion>
+  
+  <Accordion title="LKG task fails with missing files">
+    The LKG task requires bundle mode:
+    
+    ```bash
+    hereby local --bundle=true
+    hereby LKG
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## NPM Scripts
+
+Alternatively, use npm scripts defined in `package.json`:
+
+```bash
+npm run build              # Full build
+npm run build:compiler     # Compiler only
+npm run build:tests        # Test infrastructure
+npm run clean              # Clean outputs
+npm run lint               # Run linter
+npm run format             # Format code
+```
+
+<Note>
+The npm scripts are wrappers around hereby tasks. Using `hereby` directly provides more options.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing" icon="vial" href="/contributing/testing">
+    Learn how to run and write tests
+  </Card>
+  
+  <Card title="Debugging" icon="bug" href="/contributing/debugging">
+    Debug the compiler and language service
+  </Card>
+</CardGroup>

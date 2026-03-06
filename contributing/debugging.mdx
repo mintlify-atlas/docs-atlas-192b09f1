@@ -1,0 +1,603 @@
+---
+title: Debugging TypeScript
+description: Learn how to debug the TypeScript compiler, language service, and test suite
+---
+
+## Debugging Compiler Code
+
+### Using VS Code
+
+<Steps>
+  <Step title="Build the Compiler">
+    First, build TypeScript with source maps:
+    
+    ```bash
+    hereby local
+    ```
+    
+    Source maps are enabled by default and allow debugging TypeScript source.
+  </Step>
+  
+  <Step title="Create a Test File">
+    Create a TypeScript file to compile:
+    
+    ```typescript title="test.ts"
+    const message: string = "Hello, TypeScript!";
+    console.log(message);
+    ```
+  </Step>
+  
+  <Step title="Add Launch Configuration">
+    Create `.vscode/launch.json`:
+    
+    ```json
+    {
+      "version": "0.2.0",
+      "configurations": [
+        {
+          "type": "node",
+          "request": "launch",
+          "name": "Debug tsc",
+          "program": "${workspaceFolder}/built/local/tsc.js",
+          "args": ["test.ts"],
+          "sourceMaps": true,
+          "outFiles": [
+            "${workspaceFolder}/built/**/*.js"
+          ]
+        }
+      ]
+    }
+    ```
+  </Step>
+  
+  <Step title="Set Breakpoints">
+    Open compiler source files (e.g., `src/compiler/checker.ts`) and set breakpoints.
+  </Step>
+  
+  <Step title="Start Debugging">
+    Press F5 or select **Run > Start Debugging**.
+  </Step>
+</Steps>
+
+<Tip>
+Use the `customDescriptionGenerator` setting for better object inspection:
+
+```json
+"customDescriptionGenerator": "'__tsDebuggerDisplay' in this ? this.__tsDebuggerDisplay(defaultValue) : defaultValue"
+```
+</Tip>
+
+### Using Chrome DevTools
+
+Debug with Chrome's inspector:
+
+```bash
+node --inspect-brk built/local/tsc.js test.ts
+```
+
+Then:
+1. Open Chrome and navigate to `chrome://inspect`
+2. Click **Inspect** next to your Node process
+3. DevTools opens with source maps
+4. Set breakpoints and step through code
+
+<Note>
+Use `--inspect-brk` to break at the first line, or `--inspect` to break at breakpoints only.
+</Note>
+
+### Command-Line Debugging
+
+For quick debugging, add console logs:
+
+```typescript title="src/compiler/checker.ts"
+function getTypeOfSymbol(symbol: Symbol): Type {
+    console.log("Checking symbol:", symbol.escapedName);
+    // ... rest of function
+}
+```
+
+Then rebuild and run:
+
+```bash
+hereby local
+node built/local/tsc.js test.ts
+```
+
+## Debugging Tests
+
+### Interactive Test Debugging
+
+Run tests with the inspector:
+
+```bash
+hereby runtests --tests=<testName> -i
+```
+
+Example:
+
+```bash
+hereby runtests --tests=asyncFunctions -i
+```
+
+This starts the test with `--inspect-brk`, pausing before execution.
+
+### VS Code Test Debugging
+
+The provided launch configuration enables debugging test files:
+
+<Steps>
+  <Step title="Set Up Configuration">
+    Copy the template:
+    
+    ```bash
+    cp .vscode/launch.template.json .vscode/launch.json
+    ```
+  </Step>
+  
+  <Step title="Open Test File">
+    Open a test file in `tests/cases/compiler/` or `tests/cases/conformance/`.
+  </Step>
+  
+  <Step title="Set Breakpoints">
+    Add breakpoints in:
+    - The test file itself
+    - Compiler source files (`src/**`)
+  </Step>
+  
+  <Step title="Launch">
+    Press F5 or use **Run > Start Debugging**.
+    
+    The configuration automatically:
+    - Builds test infrastructure (`npm: build:tests`)
+    - Runs Mocha with the current file name
+    - Enables source maps
+    - Uses smart stepping
+  </Step>
+</Steps>
+
+### Launch Configuration Details
+
+```json title=".vscode/launch.json"
+{
+  "type": "node",
+  "request": "launch",
+  "name": "Mocha Tests (currently opened test)",
+  "program": "${workspaceRoot}/node_modules/mocha/bin/_mocha",
+  "args": [
+    "-u", "bdd",
+    "--no-timeouts",
+    "--colors",
+    "built/local/run.js",
+    "-f", "${fileBasenameNoExtension}"
+  ],
+  "sourceMaps": true,
+  "smartStep": true,
+  "preLaunchTask": "npm: build:tests"
+}
+```
+
+**Key settings:**
+- `--no-timeouts` - Prevents tests from timing out during debugging
+- `-f ${fileBasenameNoExtension}` - Filters to current file name
+- `smartStep: true` - Steps over uninteresting code
+- `preLaunchTask` - Rebuilds tests before each debug session
+
+## Debugging Language Service
+
+### Debugging tsserver
+
+The TypeScript language server runs as a separate process in editors. Here's how to debug it:
+
+<Tabs>
+  <Tab title="VS Code">
+    <Steps>
+      <Step title="Set TSServer Log Level">
+        In VS Code settings:
+        
+        ```json
+        {
+          "typescript.tsserver.log": "verbose"
+        }
+        ```
+      </Step>
+      
+      <Step title="View Logs">
+        Command Palette → **TypeScript: Open TS Server log**
+      </Step>
+      
+      <Step title="Attach Debugger">
+        Find the tsserver process ID:
+        
+        ```bash
+        ps aux | grep tsserver
+        ```
+        
+        In `.vscode/launch.json`:
+        
+        ```json
+        {
+          "type": "node",
+          "request": "attach",
+          "name": "Attach to tsserver",
+          "processId": "${command:PickProcess}"
+        }
+        ```
+        
+        Launch and select the tsserver process.
+      </Step>
+    </Steps>
+  </Tab>
+  
+  <Tab title="Using Custom tsserver">
+    Point VS Code to your local build:
+    
+    ```json title=".vscode/settings.json"
+    {
+      "typescript.tsdk": "built/local"
+    }
+    ```
+    
+    Or use the command palette:
+    
+    **TypeScript: Select TypeScript Version → Use Workspace Version**
+  </Tab>
+  
+  <Tab title="Standalone tsserver">
+    Run tsserver manually for debugging:
+    
+    ```bash
+    node --inspect-brk built/local/tsserver.js
+    ```
+    
+    Then attach with Chrome DevTools or VS Code.
+  </Tab>
+</Tabs>
+
+### Language Service Features
+
+Debug specific language service operations:
+
+```typescript
+// Set breakpoint in src/services/completions.ts
+export function getCompletionsAtPosition(
+    host: LanguageServiceHost,
+    program: Program,
+    // ...
+) {
+    console.log("Getting completions at", position);
+    // ... implementation
+}
+```
+
+## Debugging Techniques
+
+### Conditional Breakpoints
+
+In VS Code, right-click a breakpoint and set a condition:
+
+```javascript
+symbol.escapedName === "myVariable"
+```
+
+Or log a message without stopping:
+
+```javascript
+console.log("Symbol:", symbol.escapedName), false
+```
+
+### Call Stack Navigation
+
+The TypeScript compiler has deep call stacks. Use these techniques:
+
+1. **Smart Step** - Skip getter/setter properties
+2. **Step Into Target** - Choose which function to step into
+3. **Restart Frame** - Rerun a function from the start
+
+### Watching Expressions
+
+Add watches for common TypeScript objects:
+
+```javascript
+// Watch the type of a node
+checker.getTypeAtLocation(node)
+
+// Watch the symbol of an identifier
+checker.getSymbolAtLocation(identifier)
+
+// Watch flags
+node.flags & NodeFlags.Const
+```
+
+### Debug Output
+
+Enable detailed compiler output:
+
+```bash
+# Trace resolution
+node built/local/tsc.js --traceResolution test.ts
+
+# Show types
+node built/local/tsc.js --noEmit --extendedDiagnostics test.ts
+```
+
+## Performance Debugging
+
+### Tracing Compiler Performance
+
+Generate performance traces:
+
+```bash
+node built/local/tsc.js --generateTrace trace-output test.ts
+```
+
+View traces in Chrome:
+
+1. Open `chrome://tracing`
+2. Load the generated JSON file
+3. Analyze compilation time
+
+### Extended Diagnostics
+
+Show detailed timing information:
+
+```bash
+node built/local/tsc.js --extendedDiagnostics test.ts
+```
+
+Output includes:
+- Files read
+- Parse time
+- Bind time
+- Check time
+- Emit time
+- I/O operations
+
+### Profiling with Node
+
+Generate CPU profiles:
+
+```bash
+node --prof built/local/tsc.js test.ts
+node --prof-process isolate-*.log > profile.txt
+```
+
+Or use Chrome DevTools profiler:
+
+```bash
+node --inspect built/local/tsc.js test.ts
+```
+
+Open DevTools and use the **Profiler** tab.
+
+## Memory Debugging
+
+### Heap Snapshots
+
+Capture memory usage:
+
+```bash
+node --inspect built/local/tsc.js test.ts
+```
+
+In Chrome DevTools:
+1. Go to **Memory** tab
+2. Take heap snapshot
+3. Analyze object retention
+
+### Memory Leaks
+
+Increase memory limit for debugging:
+
+```bash
+node --max-old-space-size=8192 built/local/tsc.js test.ts
+```
+
+### Tracking References
+
+Use WeakMaps and WeakSets to track object relationships without preventing garbage collection.
+
+## Common Debugging Scenarios
+
+<AccordionGroup>
+  <Accordion title="Debugging Type Checking">
+    Set breakpoints in:
+    - `src/compiler/checker.ts` - Main type checker
+    - `getTypeOfSymbol()` - Symbol type resolution
+    - `checkExpression()` - Expression type checking
+    - `checkSourceFile()` - File-level checking
+    
+    Watch expressions:
+    ```javascript
+    checker.typeToString(type)
+    checker.symbolToString(symbol)
+    ```
+  </Accordion>
+  
+  <Accordion title="Debugging Parsing">
+    Set breakpoints in:
+    - `src/compiler/parser.ts` - Main parser
+    - `parseSourceFile()` - Entry point
+    - `parseStatement()` - Statement parsing
+    - `parseExpression()` - Expression parsing
+    
+    Watch:
+    ```javascript
+    scanner.getTokenText()
+    scanner.getToken()
+    ```
+  </Accordion>
+  
+  <Accordion title="Debugging Emit">
+    Set breakpoints in:
+    - `src/compiler/emitter.ts` - JavaScript emitter
+    - `src/compiler/declarationEmitter.ts` - .d.ts emitter
+    - `emitSourceFile()` - File emit entry
+    - `emit()` - Node emit dispatcher
+  </Accordion>
+  
+  <Accordion title="Debugging Module Resolution">
+    Enable trace output:
+    
+    ```bash
+    node built/local/tsc.js --traceResolution test.ts 2>&1 | tee resolution.log
+    ```
+    
+    Set breakpoints in:
+    - `src/compiler/moduleNameResolver.ts`
+    - `resolveModuleName()`
+    - `loadModuleFromFile()`
+  </Accordion>
+  
+  <Accordion title="Debugging Transformations">
+    Set breakpoints in `src/compiler/transformers/`:
+    - `ts.ts` - TypeScript-specific transforms
+    - `es2015.ts` - ES2015 transforms
+    - `esnext.ts` - ESNext transforms
+    - `jsx.ts` - JSX transforms
+  </Accordion>
+</AccordionGroup>
+
+## Debugging Tools
+
+### Built-in Utilities
+
+TypeScript provides debug helpers:
+
+```typescript
+// Pretty-print a node
+Debug.printNode(node);
+
+// Assert conditions
+Debug.assert(condition, "Error message");
+
+// Fail fast
+Debug.fail("Should not reach here");
+
+// Check values
+Debug.checkDefined(value);
+Debug.assertNever(value);
+```
+
+### Stack Trace Limits
+
+Increase stack trace depth:
+
+```bash
+hereby runtests --tests=<test> --stackTraceLimit=100
+```
+
+Or unlimited:
+
+```bash
+hereby runtests --tests=<test> --stackTraceLimit=full
+```
+
+### Source Maps
+
+Verify source maps are working:
+
+```bash
+# Check for .js.map files
+ls built/local/*.js.map
+
+# Validate source map
+node -e "console.log(require('./built/local/tsc.js.map'))"
+```
+
+## Remote Debugging
+
+Debug TypeScript running in a remote environment:
+
+```bash
+# On remote machine
+node --inspect=0.0.0.0:9229 built/local/tsc.js test.ts
+
+# Create SSH tunnel from local machine
+ssh -L 9229:localhost:9229 user@remote
+
+# Connect with Chrome DevTools to localhost:9229
+```
+
+## Troubleshooting Debugging
+
+<AccordionGroup>
+  <Accordion title="Breakpoints not hit">
+    Verify:
+    - Source maps are enabled
+    - Files are built (`hereby local`)
+    - Breakpoint is in reachable code
+    - Using correct Node version (>= 14.17)
+    
+    Rebuild with:
+    ```bash
+    hereby clean
+    hereby local
+    ```
+  </Accordion>
+  
+  <Accordion title="Can't see TypeScript source">
+    Source maps may be missing or incorrect:
+    
+    ```bash
+    # Check for source maps
+    ls built/local/*.js.map
+    
+    # Rebuild
+    hereby clean
+    hereby local --bundle=false
+    ```
+    
+    Use unbundled mode for better debugging.
+  </Accordion>
+  
+  <Accordion title="Debugger is too slow">
+    - Disable all breakpoints except critical ones
+    - Use conditional breakpoints
+    - Use logpoints instead of breakpoints
+    - Disable source map stepping in non-TypeScript code
+  </Accordion>
+  
+  <Accordion title="Variables show '[Function]' in debugger">
+    Use console or watch expressions:
+    
+    ```javascript
+    // Watch expression
+    JSON.stringify(obj, null, 2)
+    
+    // Or use __tsDebuggerDisplay
+    obj.__tsDebuggerDisplay?.()
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Resources
+
+<CardGroup cols={2}>
+  <Card title="VS Code Debugging" icon="code" href="https://code.visualstudio.com/docs/editor/debugging">
+    Official VS Code debugging guide
+  </Card>
+  
+  <Card title="Node.js Debugging" icon="node-js" href="https://nodejs.org/en/docs/guides/debugging-getting-started/">
+    Node.js debugging documentation
+  </Card>
+  
+  <Card title="Chrome DevTools" icon="chrome" href="https://developer.chrome.com/docs/devtools/">
+    Chrome DevTools reference
+  </Card>
+  
+  <Card title="TypeScript Compiler Notes" icon="book" href="https://github.com/microsoft/TypeScript-Compiler-Notes">
+    Architectural documentation
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing" icon="vial" href="/contributing/testing">
+    Learn how to write and run tests
+  </Card>
+  
+  <Card title="Building" icon="hammer" href="/contributing/building">
+    Build system reference
+  </Card>
+</CardGroup>

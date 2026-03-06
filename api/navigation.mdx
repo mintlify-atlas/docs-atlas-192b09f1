@@ -1,0 +1,786 @@
+---
+title: Navigation API
+description: Go to definition, find references, and code navigation features
+---
+
+The Navigation API provides features for navigating TypeScript code: go to definition, find references, find implementations, and more. These power the core navigation features in editors.
+
+## Overview
+
+Navigation features help users understand and traverse code:
+
+<CardGroup cols={2}>
+  <Card title="Go to Definition" icon="location-dot">
+    Jump to where a symbol is defined
+  </Card>
+  <Card title="Find References" icon="magnifying-glass">
+    Find all usages of a symbol
+  </Card>
+  <Card title="Go to Implementation" icon="code">
+    Find concrete implementations
+  </Card>
+  <Card title="Go to Type Definition" icon="t">
+    Jump to type declarations
+  </Card>
+</CardGroup>
+
+## getDefinitionAtPosition
+
+Finds the definition(s) of a symbol at a specific position.
+
+### Signature
+
+```typescript
+function getDefinitionAtPosition(
+  fileName: string,
+  position: number
+): DefinitionInfo[] | undefined;
+```
+
+<ParamField path="fileName" type="string" required>
+  Path to the source file.
+</ParamField>
+
+<ParamField path="position" type="number" required>
+  Zero-based character offset where the cursor is positioned.
+</ParamField>
+
+### Return Value
+
+```typescript
+interface DefinitionInfo extends DocumentSpan {
+  kind: ScriptElementKind;          // Kind of definition
+  name: string;                     // Name of the symbol
+  containerKind?: ScriptElementKind; // Container type
+  containerName?: string;            // Container name
+  unverified?: boolean;              // Module resolution might have failed
+}
+
+interface DocumentSpan {
+  textSpan: TextSpan;          // Location in the document
+  fileName: string;            // File containing the span
+  originalTextSpan?: TextSpan; // Span before remap
+  originalFileName?: string;   // File before remap
+  contextSpan?: TextSpan;      // Full declaration span
+  originalContextSpan?: TextSpan;
+}
+
+interface TextSpan {
+  start: number;   // Start position
+  length: number;  // Length of the span
+}
+```
+
+## Example: Go to Definition
+
+```typescript Go to Definition
+import * as ts from 'typescript';
+
+const code = `
+interface User {
+  name: string;
+  age: number;
+}
+
+function greet(user: User) {
+  console.log(user.name);
+  //              ^^^^
+  // Find definition of 'name'
+}
+`;
+
+// Get position of 'name' in user.name
+const position = code.indexOf('user.name') + 5; // Position of 'name'
+
+const definitions = service.getDefinitionAtPosition('app.ts', position);
+
+if (definitions && definitions.length > 0) {
+  definitions.forEach(def => {
+    const sourceFile = service.getProgram()!.getSourceFile(def.fileName)!;
+    const { line, character } = sourceFile.getLineAndCharacterOfPosition(
+      def.textSpan.start
+    );
+    
+    console.log('Definition found:');
+    console.log(`  File: ${def.fileName}`);
+    console.log(`  Location: ${line + 1}:${character + 1}`);
+    console.log(`  Kind: ${def.kind}`);
+    console.log(`  Name: ${def.name}`);
+    
+    if (def.containerName) {
+      console.log(`  Container: ${def.containerName}`);
+    }
+    
+    // Get the declaration text
+    const text = sourceFile.text.substring(
+      def.textSpan.start,
+      def.textSpan.start + def.textSpan.length
+    );
+    console.log(`  Text: ${text}`);
+  });
+}
+```
+
+<Expandable title="Output">
+```
+Definition found:
+  File: app.ts
+  Location: 3:3
+  Kind: property
+  Name: name
+  Container: User
+  Text: name: string;
+```
+</Expandable>
+
+## getDefinitionAndBoundSpan
+
+Gets definitions and the identifier span at the cursor position.
+
+### Signature
+
+```typescript
+function getDefinitionAndBoundSpan(
+  fileName: string,
+  position: number
+): DefinitionInfoAndBoundSpan | undefined;
+```
+
+### Return Value
+
+```typescript
+interface DefinitionInfoAndBoundSpan {
+  definitions?: DefinitionInfo[];  // Definition locations
+  textSpan: TextSpan;              // Span of the identifier
+}
+```
+
+### Example
+
+```typescript Definition with Span
+const result = service.getDefinitionAndBoundSpan('app.ts', position);
+
+if (result) {
+  // Highlight the identifier under the cursor
+  const identifierSpan = result.textSpan;
+  console.log('Identifier span:', identifierSpan);
+  
+  // Navigate to definition
+  if (result.definitions && result.definitions.length > 0) {
+    const def = result.definitions[0];
+    console.log(`Go to: ${def.fileName}:${def.textSpan.start}`);
+  }
+}
+```
+
+## getTypeDefinitionAtPosition
+
+Finds the type definition of a symbol (useful for navigating to interfaces).
+
+### Signature
+
+```typescript
+function getTypeDefinitionAtPosition(
+  fileName: string,
+  position: number
+): DefinitionInfo[] | undefined;
+```
+
+### Example: Go to Type Definition
+
+```typescript Go to Type
+const code = `
+interface User {
+  name: string;
+}
+
+const user: User = { name: "Alice" };
+//    ^^^^
+// Go to type definition of 'user'
+`;
+
+// Position of 'user' variable
+const position = code.lastIndexOf('user:') + 0;
+
+const typeDefs = service.getTypeDefinitionAtPosition('app.ts', position);
+
+if (typeDefs && typeDefs.length > 0) {
+  const typeDef = typeDefs[0];
+  console.log('Type definition:');
+  console.log(`  ${typeDef.fileName}:${typeDef.textSpan.start}`);
+  console.log(`  Name: ${typeDef.name}`);
+  console.log(`  Kind: ${typeDef.kind}`);
+}
+```
+
+<Expandable title="Output">
+```
+Type definition:
+  app.ts:2
+  Name: User
+  Kind: interface
+```
+</Expandable>
+
+## getReferencesAtPosition
+
+Finds all references to a symbol.
+
+### Signature
+
+```typescript
+function getReferencesAtPosition(
+  fileName: string,
+  position: number
+): ReferenceEntry[] | undefined;
+```
+
+### Return Value
+
+```typescript
+interface ReferenceEntry extends DocumentSpan {
+  isWriteAccess: boolean;       // Is this a write reference?
+  isDefinition: boolean;        // Is this the definition?
+  isInString?: boolean;         // Reference in string literal?
+}
+```
+
+### Example: Find All References
+
+```typescript Find References
+const code = `
+function add(a: number, b: number): number {
+  return a + b;
+}
+
+const result1 = add(1, 2);
+const result2 = add(3, 4);
+const result3 = add(5, 6);
+`;
+
+// Position of 'add' function name
+const position = code.indexOf('function add') + 9;
+
+const references = service.getReferencesAtPosition('app.ts', position);
+
+if (references) {
+  console.log(`Found ${references.length} references:`);
+  
+  references.forEach((ref, index) => {
+    const sourceFile = service.getProgram()!.getSourceFile(ref.fileName)!;
+    const { line, character } = sourceFile.getLineAndCharacterOfPosition(
+      ref.textSpan.start
+    );
+    
+    const type = ref.isDefinition ? 'definition' :
+                 ref.isWriteAccess ? 'write' : 'read';
+    
+    console.log(`  ${index + 1}. ${ref.fileName}:${line + 1}:${character + 1} (${type})`);
+  });
+}
+```
+
+<Expandable title="Output">
+```
+Found 4 references:
+  1. app.ts:2:10 (definition)
+  2. app.ts:6:17 (read)
+  3. app.ts:7:17 (read)
+  4. app.ts:8:17 (read)
+```
+</Expandable>
+
+## findReferences
+
+Finds references grouped by definition.
+
+### Signature
+
+```typescript
+function findReferences(
+  fileName: string,
+  position: number
+): ReferencedSymbol[] | undefined;
+```
+
+### Return Value
+
+```typescript
+interface ReferencedSymbol {
+  definition: ReferencedSymbolDefinitionInfo;  // The definition
+  references: ReferenceEntry[];                 // All references
+}
+
+interface ReferencedSymbolDefinitionInfo extends DefinitionInfo {
+  displayParts: SymbolDisplayPart[];  // Formatted display
+}
+```
+
+### Example: Grouped References
+
+```typescript Find References Grouped
+const referencedSymbols = service.findReferences('app.ts', position);
+
+if (referencedSymbols) {
+  referencedSymbols.forEach(group => {
+    console.log('\nSymbol:', group.definition.name);
+    console.log('Definition:', 
+      group.definition.displayParts.map(p => p.text).join(''));
+    
+    console.log(`References (${group.references.length}):`);
+    group.references.forEach(ref => {
+      const sourceFile = service.getProgram()!.getSourceFile(ref.fileName)!;
+      const { line } = sourceFile.getLineAndCharacterOfPosition(
+        ref.textSpan.start
+      );
+      
+      // Get the line of code
+      const lineStart = sourceFile.getPositionOfLineAndCharacter(line, 0);
+      const lineEnd = sourceFile.getLineEndOfPosition(lineStart);
+      const lineText = sourceFile.text.substring(lineStart, lineEnd).trim();
+      
+      console.log(`  ${ref.fileName}:${line + 1}`);
+      console.log(`    ${lineText}`);
+    });
+  });
+}
+```
+
+<Expandable title="Output">
+```
+Symbol: add
+Definition: function add(a: number, b: number): number
+References (4):
+  app.ts:2
+    function add(a: number, b: number): number {
+  app.ts:6
+    const result1 = add(1, 2);
+  app.ts:7
+    const result2 = add(3, 4);
+  app.ts:8
+    const result3 = add(5, 6);
+```
+</Expandable>
+
+## getImplementationAtPosition
+
+Finds implementations of an interface or abstract class.
+
+### Signature
+
+```typescript
+function getImplementationAtPosition(
+  fileName: string,
+  position: number
+): ImplementationLocation[] | undefined;
+```
+
+### Return Value
+
+```typescript
+interface ImplementationLocation extends DocumentSpan {
+  kind: ScriptElementKind;
+  displayParts: SymbolDisplayPart[];
+}
+```
+
+### Example: Find Implementations
+
+```typescript Find Implementations
+const code = `
+interface Animal {
+  makeSound(): void;
+}
+
+class Dog implements Animal {
+  makeSound() {
+    console.log('Woof!');
+  }
+}
+
+class Cat implements Animal {
+  makeSound() {
+    console.log('Meow!');
+  }
+}
+`;
+
+// Position of 'Animal' interface
+const position = code.indexOf('interface Animal') + 10;
+
+const implementations = service.getImplementationAtPosition(
+  'app.ts',
+  position
+);
+
+if (implementations) {
+  console.log('Implementations:');
+  implementations.forEach(impl => {
+    const sourceFile = service.getProgram()!.getSourceFile(impl.fileName)!;
+    const { line } = sourceFile.getLineAndCharacterOfPosition(
+      impl.textSpan.start
+    );
+    
+    const display = impl.displayParts.map(p => p.text).join('');
+    console.log(`  ${impl.fileName}:${line + 1}`);
+    console.log(`    ${display}`);
+  });
+}
+```
+
+<Expandable title="Output">
+```
+Implementations:
+  app.ts:6
+    class Dog
+  app.ts:12
+    class Cat
+```
+</Expandable>
+
+## Document Highlights
+
+Highlights all occurrences of a symbol in a file.
+
+### Signature
+
+```typescript
+function getDocumentHighlights(
+  fileName: string,
+  position: number,
+  filesToSearch: string[]
+): DocumentHighlights[] | undefined;
+```
+
+### Return Value
+
+```typescript
+interface DocumentHighlights {
+  fileName: string;
+  highlightSpans: HighlightSpan[];
+}
+
+interface HighlightSpan {
+  textSpan: TextSpan;
+  kind: HighlightSpanKind;
+}
+
+enum HighlightSpanKind {
+  none = "none",
+  definition = "definition",
+  reference = "reference",
+  writtenReference = "writtenReference"
+}
+```
+
+### Example: Highlight Occurrences
+
+```typescript Highlight Occurrences
+const code = `
+function calculate(x: number) {
+  const y = x * 2;
+  const z = x + y;
+  return z;
+}
+`;
+
+// Position of 'x' parameter
+const position = code.indexOf('x: number');
+
+const highlights = service.getDocumentHighlights(
+  'app.ts',
+  position,
+  ['app.ts'] // Files to search
+);
+
+if (highlights) {
+  highlights.forEach(docHighlight => {
+    console.log(`File: ${docHighlight.fileName}`);
+    
+    docHighlight.highlightSpans.forEach(span => {
+      const sourceFile = service.getProgram()!.getSourceFile(
+        docHighlight.fileName
+      )!;
+      const { line, character } = sourceFile.getLineAndCharacterOfPosition(
+        span.textSpan.start
+      );
+      
+      console.log(
+        `  ${line + 1}:${character + 1} (${span.kind})`
+      );
+    });
+  });
+}
+```
+
+<Expandable title="Output">
+```
+File: app.ts
+  2:20 (definition)
+  3:13 (reference)
+  4:13 (reference)
+```
+</Expandable>
+
+## Navigation Tree
+
+Gets a tree structure of all declarations in a file.
+
+### Signature
+
+```typescript
+function getNavigationTree(
+  fileName: string
+): NavigationTree;
+```
+
+### Return Value
+
+```typescript
+interface NavigationTree {
+  text: string;                          // Name of the node
+  kind: ScriptElementKind;               // Kind of element
+  kindModifiers: string;                 // Modifiers
+  spans: TextSpan[];                     // All spans for this node
+  nameSpan: TextSpan | undefined;        // Span of the name
+  childItems?: NavigationTree[];         // Child nodes
+}
+```
+
+### Example: File Outline
+
+```typescript Navigation Tree
+const code = `
+class User {
+  constructor(public name: string) {}
+  
+  greet() {
+    console.log('Hello, ' + this.name);
+  }
+}
+
+function createUser(name: string): User {
+  return new User(name);
+}
+`;
+
+const navTree = service.getNavigationTree('app.ts');
+
+function printTree(node: ts.NavigationTree, indent = 0) {
+  const prefix = '  '.repeat(indent);
+  console.log(`${prefix}${node.text} (${node.kind})`);
+  
+  if (node.childItems) {
+    node.childItems.forEach(child => printTree(child, indent + 1));
+  }
+}
+
+printTree(navTree);
+```
+
+<Expandable title="Output">
+```
+<global> (script)
+  User (class)
+    constructor (constructor)
+      name (parameter)
+    greet (method)
+  createUser (function)
+    name (parameter)
+```
+</Expandable>
+
+## Real-World Integration
+
+```typescript Complete Navigation Provider
+import * as ts from 'typescript';
+
+class NavigationProvider {
+  constructor(private service: ts.LanguageService) {}
+
+  async goToDefinition(fileName: string, position: number) {
+    const definitions = this.service.getDefinitionAtPosition(
+      fileName,
+      position
+    );
+
+    if (!definitions || definitions.length === 0) {
+      return null;
+    }
+
+    return definitions.map(def => ({
+      uri: def.fileName,
+      range: this.textSpanToRange(def.textSpan),
+      targetRange: def.contextSpan
+        ? this.textSpanToRange(def.contextSpan)
+        : this.textSpanToRange(def.textSpan)
+    }));
+  }
+
+  async findReferences(fileName: string, position: number) {
+    const referencedSymbols = this.service.findReferences(
+      fileName,
+      position
+    );
+
+    if (!referencedSymbols) {
+      return [];
+    }
+
+    const locations: any[] = [];
+
+    for (const symbol of referencedSymbols) {
+      for (const ref of symbol.references) {
+        locations.push({
+          uri: ref.fileName,
+          range: this.textSpanToRange(ref.textSpan),
+          isDefinition: ref.isDefinition,
+          isWriteAccess: ref.isWriteAccess
+        });
+      }
+    }
+
+    return locations;
+  }
+
+  async findImplementations(fileName: string, position: number) {
+    const implementations = this.service.getImplementationAtPosition(
+      fileName,
+      position
+    );
+
+    if (!implementations) {
+      return [];
+    }
+
+    return implementations.map(impl => ({
+      uri: impl.fileName,
+      range: this.textSpanToRange(impl.textSpan)
+    }));
+  }
+
+  async getDocumentSymbols(fileName: string) {
+    const navTree = this.service.getNavigationTree(fileName);
+    return this.convertNavTree(navTree);
+  }
+
+  async getDocumentHighlights(
+    fileName: string,
+    position: number,
+    filesToSearch: string[]
+  ) {
+    const highlights = this.service.getDocumentHighlights(
+      fileName,
+      position,
+      filesToSearch
+    );
+
+    if (!highlights) {
+      return [];
+    }
+
+    return highlights.flatMap(doc =>
+      doc.highlightSpans.map(span => ({
+        uri: doc.fileName,
+        range: this.textSpanToRange(span.textSpan),
+        kind: this.convertHighlightKind(span.kind)
+      }))
+    );
+  }
+
+  private textSpanToRange(span: ts.TextSpan) {
+    const start = this.service.getProgram()!
+      .getSourceFile(fileName)!
+      .getLineAndCharacterOfPosition(span.start);
+    const end = this.service.getProgram()!
+      .getSourceFile(fileName)!
+      .getLineAndCharacterOfPosition(span.start + span.length);
+
+    return {
+      start: { line: start.line, character: start.character },
+      end: { line: end.line, character: end.character }
+    };
+  }
+
+  private convertNavTree(node: ts.NavigationTree): any {
+    const result: any = {
+      name: node.text,
+      kind: this.convertSymbolKind(node.kind),
+      range: node.spans[0] ? this.textSpanToRange(node.spans[0]) : null,
+      selectionRange: node.nameSpan
+        ? this.textSpanToRange(node.nameSpan)
+        : null
+    };
+
+    if (node.childItems && node.childItems.length > 0) {
+      result.children = node.childItems.map(child =>
+        this.convertNavTree(child)
+      );
+    }
+
+    return result;
+  }
+
+  private convertSymbolKind(kind: ts.ScriptElementKind): string {
+    const kindMap: Record<string, string> = {
+      [ts.ScriptElementKind.classElement]: 'class',
+      [ts.ScriptElementKind.interfaceElement]: 'interface',
+      [ts.ScriptElementKind.functionElement]: 'function',
+      [ts.ScriptElementKind.memberFunctionElement]: 'method',
+      [ts.ScriptElementKind.memberVariableElement]: 'property',
+      [ts.ScriptElementKind.variableElement]: 'variable',
+      // ... more mappings
+    };
+    return kindMap[kind] || 'unknown';
+  }
+
+  private convertHighlightKind(kind: ts.HighlightSpanKind): string {
+    switch (kind) {
+      case ts.HighlightSpanKind.definition:
+        return 'write';
+      case ts.HighlightSpanKind.writtenReference:
+        return 'write';
+      case ts.HighlightSpanKind.reference:
+        return 'read';
+      default:
+        return 'text';
+    }
+  }
+}
+
+// Usage
+const provider = new NavigationProvider(service);
+
+// Go to definition
+const definitions = await provider.goToDefinition('app.ts', position);
+console.log('Definitions:', definitions);
+
+// Find all references
+const references = await provider.findReferences('app.ts', position);
+console.log(`Found ${references.length} references`);
+
+// Find implementations
+const implementations = await provider.findImplementations('app.ts', position);
+console.log('Implementations:', implementations);
+
+// Get file outline
+const symbols = await provider.getDocumentSymbols('app.ts');
+console.log('Document symbols:', symbols);
+```
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Language Service API" icon="code" href="./language-service">
+    Main Language Service reference
+  </Card>
+  <Card title="Completions" icon="sparkles" href="./completions">
+    Code completion API
+  </Card>
+  <Card title="Diagnostics" icon="triangle-exclamation" href="./diagnostics">
+    Error reporting and diagnostics
+  </Card>
+  <Card title="Language Service Overview" icon="book" href="./language-service-overview">
+    Language Service architecture
+  </Card>
+</CardGroup>

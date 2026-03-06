@@ -1,0 +1,632 @@
+---
+title: "TypeChecker API"
+description: "Documentation for the TypeScript TypeChecker interface"
+---
+
+## Overview
+
+The `TypeChecker` is the semantic analysis engine of the TypeScript Compiler API. It provides methods to query type information, resolve symbols, and perform type-related operations on the Abstract Syntax Tree (AST).
+
+## Getting a TypeChecker
+
+The TypeChecker is obtained from a Program instance:
+
+```typescript
+import * as ts from 'typescript';
+
+const program = ts.createProgram(['./src/index.ts'], {
+  target: ts.ScriptTarget.ES2020
+});
+
+const typeChecker = program.getTypeChecker();
+```
+
+## Symbol Methods
+
+### getSymbolAtLocation()
+
+Returns the symbol for a node at a specific location.
+
+<ParamField path="node" type="Node" required>
+  The AST node to get the symbol for
+</ParamField>
+
+<ResponseField name="return" type="Symbol | undefined">
+  The symbol at the location, or undefined if not found
+</ResponseField>
+
+```typescript
+const sourceFile = program.getSourceFile('./src/index.ts');
+if (sourceFile) {
+  ts.forEachChild(sourceFile, (node) => {
+    if (ts.isIdentifier(node)) {
+      const symbol = typeChecker.getSymbolAtLocation(node);
+      if (symbol) {
+        console.log(`Found symbol: ${symbol.name}`);
+      }
+    }
+  });
+}
+```
+
+### getTypeOfSymbolAtLocation()
+
+Returns the type of a symbol at a specific location.
+
+<ParamField path="symbol" type="Symbol" required>
+  The symbol to get the type for
+</ParamField>
+
+<ParamField path="node" type="Node" required>
+  The location node
+</ParamField>
+
+<ResponseField name="return" type="Type">
+  The type of the symbol at that location
+</ResponseField>
+
+```typescript
+if (ts.isFunctionDeclaration(node) && node.name) {
+  const symbol = typeChecker.getSymbolAtLocation(node.name);
+  if (symbol) {
+    const type = typeChecker.getTypeOfSymbolAtLocation(symbol, node);
+    console.log(`Function type: ${typeChecker.typeToString(type)}`);
+  }
+}
+```
+
+### getTypeOfSymbol()
+
+Returns the type of a symbol.
+
+<ParamField path="symbol" type="Symbol" required>
+  The symbol to get the type for
+</ParamField>
+
+<ResponseField name="return" type="Type">
+  The type of the symbol
+</ResponseField>
+
+```typescript
+const symbol = typeChecker.getSymbolAtLocation(identifier);
+if (symbol) {
+  const type = typeChecker.getTypeOfSymbol(symbol);
+  console.log(typeChecker.typeToString(type));
+}
+```
+
+### getDeclaredTypeOfSymbol()
+
+Returns the declared type of a symbol (for classes, interfaces, etc.).
+
+<ParamField path="symbol" type="Symbol" required>
+  The symbol to get the declared type for
+</ParamField>
+
+<ResponseField name="return" type="Type">
+  The declared type of the symbol
+</ResponseField>
+
+```typescript
+if (ts.isClassDeclaration(node) && node.name) {
+  const symbol = typeChecker.getSymbolAtLocation(node.name);
+  if (symbol) {
+    const type = typeChecker.getDeclaredTypeOfSymbol(symbol);
+    console.log(`Class type: ${typeChecker.typeToString(type)}`);
+  }
+}
+```
+
+### getFullyQualifiedName()
+
+Returns the fully qualified name of a symbol.
+
+<ParamField path="symbol" type="Symbol" required>
+  The symbol to get the name for
+</ParamField>
+
+<ResponseField name="return" type="string">
+  The fully qualified name
+</ResponseField>
+
+```typescript
+const symbol = typeChecker.getSymbolAtLocation(node);
+if (symbol) {
+  const fullyQualifiedName = typeChecker.getFullyQualifiedName(symbol);
+  console.log(`Fully qualified: ${fullyQualifiedName}`);
+}
+```
+
+## Type Methods
+
+### getTypeAtLocation()
+
+Returns the type of an expression at a specific location.
+
+<ParamField path="node" type="Node" required>
+  The node to get the type for
+</ParamField>
+
+<ResponseField name="return" type="Type">
+  The type at the location
+</ResponseField>
+
+```typescript
+if (ts.isVariableDeclaration(node) && node.initializer) {
+  const type = typeChecker.getTypeAtLocation(node.initializer);
+  console.log(`Initializer type: ${typeChecker.typeToString(type)}`);
+}
+```
+
+### getTypeFromTypeNode()
+
+Converts a type node to a Type object.
+
+<ParamField path="node" type="TypeNode" required>
+  The type node to convert
+</ParamField>
+
+<ResponseField name="return" type="Type">
+  The Type object
+</ResponseField>
+
+```typescript
+if (ts.isVariableDeclaration(node) && node.type) {
+  const type = typeChecker.getTypeFromTypeNode(node.type);
+  console.log(`Declared type: ${typeChecker.typeToString(type)}`);
+}
+```
+
+### getPropertiesOfType()
+
+Returns all properties of a type.
+
+<ParamField path="type" type="Type" required>
+  The type to get properties for
+</ParamField>
+
+<ResponseField name="return" type="Symbol[]">
+  Array of property symbols
+</ResponseField>
+
+```typescript
+const type = typeChecker.getTypeAtLocation(node);
+const properties = typeChecker.getPropertiesOfType(type);
+properties.forEach(prop => {
+  console.log(`Property: ${prop.name}`);
+});
+```
+
+### getPropertyOfType()
+
+Returns a specific property of a type by name.
+
+<ParamField path="type" type="Type" required>
+  The type to search
+</ParamField>
+
+<ParamField path="propertyName" type="string" required>
+  The name of the property
+</ParamField>
+
+<ResponseField name="return" type="Symbol | undefined">
+  The property symbol, or undefined if not found
+</ResponseField>
+
+```typescript
+const type = typeChecker.getTypeAtLocation(objectNode);
+const lengthProp = typeChecker.getPropertyOfType(type, 'length');
+if (lengthProp) {
+  console.log('Has length property');
+}
+```
+
+### getSignaturesOfType()
+
+Returns all signatures of a type (for functions, constructors, etc.).
+
+<ParamField path="type" type="Type" required>
+  The type to get signatures for
+</ParamField>
+
+<ParamField path="kind" type="SignatureKind" required>
+  The kind of signature (Call, Construct, etc.)
+</ParamField>
+
+<ResponseField name="return" type="readonly Signature[]">
+  Array of signatures
+</ResponseField>
+
+```typescript
+const type = typeChecker.getTypeAtLocation(functionNode);
+const signatures = typeChecker.getSignaturesOfType(type, ts.SignatureKind.Call);
+signatures.forEach(sig => {
+  const sigString = typeChecker.signatureToString(sig);
+  console.log(`Signature: ${sigString}`);
+});
+```
+
+### getReturnTypeOfSignature()
+
+Returns the return type of a signature.
+
+<ParamField path="signature" type="Signature" required>
+  The signature to get the return type for
+</ParamField>
+
+<ResponseField name="return" type="Type">
+  The return type
+</ResponseField>
+
+```typescript
+const type = typeChecker.getTypeAtLocation(functionNode);
+const signatures = typeChecker.getSignaturesOfType(type, ts.SignatureKind.Call);
+if (signatures.length > 0) {
+  const returnType = typeChecker.getReturnTypeOfSignature(signatures[0]);
+  console.log(`Returns: ${typeChecker.typeToString(returnType)}`);
+}
+```
+
+### getBaseTypes()
+
+Returns the base types of a class or interface.
+
+<ParamField path="type" type="InterfaceType" required>
+  The interface or class type
+</ParamField>
+
+<ResponseField name="return" type="BaseType[]">
+  Array of base types
+</ResponseField>
+
+```typescript
+if (ts.isClassDeclaration(node) && node.name) {
+  const symbol = typeChecker.getSymbolAtLocation(node.name);
+  if (symbol) {
+    const type = typeChecker.getDeclaredTypeOfSymbol(symbol) as ts.InterfaceType;
+    const baseTypes = typeChecker.getBaseTypes(type);
+    baseTypes.forEach(baseType => {
+      console.log(`Extends: ${typeChecker.typeToString(baseType)}`);
+    });
+  }
+}
+```
+
+### getTypeArguments()
+
+Returns the type arguments for a type reference.
+
+<ParamField path="type" type="TypeReference" required>
+  The type reference
+</ParamField>
+
+<ResponseField name="return" type="readonly Type[]">
+  Array of type arguments
+</ResponseField>
+
+```typescript
+const type = typeChecker.getTypeAtLocation(node) as ts.TypeReference;
+if (typeChecker.isTypeReference(type)) {
+  const typeArgs = typeChecker.getTypeArguments(type);
+  typeArgs.forEach(arg => {
+    console.log(`Type arg: ${typeChecker.typeToString(arg)}`);
+  });
+}
+```
+
+## Type Conversion Methods
+
+### typeToString()
+
+Converts a type to a string representation.
+
+<ParamField path="type" type="Type" required>
+  The type to convert
+</ParamField>
+
+<ParamField path="enclosingDeclaration" type="Node">
+  Optional enclosing declaration for context
+</ParamField>
+
+<ParamField path="flags" type="TypeFormatFlags">
+  Optional formatting flags
+</ParamField>
+
+<ResponseField name="return" type="string">
+  String representation of the type
+</ResponseField>
+
+```typescript
+const type = typeChecker.getTypeAtLocation(node);
+const typeString = typeChecker.typeToString(type);
+console.log(`Type: ${typeString}`);
+
+// With flags for more detailed output
+const detailedString = typeChecker.typeToString(
+  type,
+  undefined,
+  ts.TypeFormatFlags.NoTruncation
+);
+```
+
+### symbolToString()
+
+Converts a symbol to a string representation.
+
+<ParamField path="symbol" type="Symbol" required>
+  The symbol to convert
+</ParamField>
+
+<ParamField path="enclosingDeclaration" type="Node">
+  Optional enclosing declaration
+</ParamField>
+
+<ParamField path="meaning" type="SymbolFlags">
+  Optional meaning flags
+</ParamField>
+
+<ParamField path="flags" type="SymbolFormatFlags">
+  Optional formatting flags
+</ParamField>
+
+<ResponseField name="return" type="string">
+  String representation of the symbol
+</ResponseField>
+
+```typescript
+const symbol = typeChecker.getSymbolAtLocation(node);
+if (symbol) {
+  const symbolString = typeChecker.symbolToString(symbol);
+  console.log(`Symbol: ${symbolString}`);
+}
+```
+
+### signatureToString()
+
+Converts a signature to a string representation.
+
+<ParamField path="signature" type="Signature" required>
+  The signature to convert
+</ParamField>
+
+<ParamField path="enclosingDeclaration" type="Node">
+  Optional enclosing declaration
+</ParamField>
+
+<ParamField path="flags" type="TypeFormatFlags">
+  Optional formatting flags
+</ParamField>
+
+<ParamField path="kind" type="SignatureKind">
+  Optional signature kind
+</ParamField>
+
+<ResponseField name="return" type="string">
+  String representation of the signature
+</ResponseField>
+
+```typescript
+const type = typeChecker.getTypeAtLocation(functionNode);
+const signatures = typeChecker.getSignaturesOfType(type, ts.SignatureKind.Call);
+if (signatures.length > 0) {
+  const sigString = typeChecker.signatureToString(signatures[0]);
+  console.log(`Signature: ${sigString}`);
+}
+```
+
+### typeToTypeNode()
+
+Converts a Type to a TypeNode AST node.
+
+<ParamField path="type" type="Type" required>
+  The type to convert
+</ParamField>
+
+<ParamField path="enclosingDeclaration" type="Node | undefined" required>
+  Enclosing declaration for context
+</ParamField>
+
+<ParamField path="flags" type="NodeBuilderFlags | undefined" required>
+  Node builder flags
+</ParamField>
+
+<ResponseField name="return" type="TypeNode | undefined">
+  The TypeNode AST node
+</ResponseField>
+
+```typescript
+const type = typeChecker.getTypeAtLocation(node);
+const typeNode = typeChecker.typeToTypeNode(
+  type,
+  undefined,
+  ts.NodeBuilderFlags.None
+);
+if (typeNode) {
+  console.log(`TypeNode kind: ${ts.SyntaxKind[typeNode.kind]}`);
+}
+```
+
+## Utility Methods
+
+### getNullableType()
+
+Returns a nullable version of a type.
+
+<ParamField path="type" type="Type" required>
+  The type to make nullable
+</ParamField>
+
+<ParamField path="flags" type="TypeFlags" required>
+  Flags indicating which nullable types to add (null, undefined)
+</ParamField>
+
+<ResponseField name="return" type="Type">
+  The nullable type
+</ResponseField>
+
+### getNonNullableType()
+
+Removes null and undefined from a type.
+
+<ParamField path="type" type="Type" required>
+  The type to make non-nullable
+</ParamField>
+
+<ResponseField name="return" type="Type">
+  The non-nullable type
+</ResponseField>
+
+```typescript
+const type = typeChecker.getTypeAtLocation(node);
+const nonNullable = typeChecker.getNonNullableType(type);
+console.log(`Non-nullable: ${typeChecker.typeToString(nonNullable)}`);
+```
+
+### getWidenedType()
+
+Returns a widened version of a type.
+
+<ParamField path="type" type="Type" required>
+  The type to widen
+</ParamField>
+
+<ResponseField name="return" type="Type">
+  The widened type
+</ResponseField>
+
+### getAliasedSymbol()
+
+Follows all aliases to get the original symbol.
+
+<ParamField path="symbol" type="Symbol" required>
+  The symbol to resolve
+</ParamField>
+
+<ResponseField name="return" type="Symbol">
+  The original aliased symbol
+</ResponseField>
+
+```typescript
+const symbol = typeChecker.getSymbolAtLocation(importNode);
+if (symbol) {
+  const aliasedSymbol = typeChecker.getAliasedSymbol(symbol);
+  console.log(`Original: ${aliasedSymbol.name}`);
+}
+```
+
+### getExportSymbolOfSymbol()
+
+Returns the exported symbol for a local symbol.
+
+<ParamField path="symbol" type="Symbol" required>
+  The local symbol
+</ParamField>
+
+<ResponseField name="return" type="Symbol">
+  The exported symbol
+</ResponseField>
+
+## Primitive Type Getters
+
+```typescript
+const anyType = typeChecker.getAnyType();
+const stringType = typeChecker.getStringType();
+const numberType = typeChecker.getNumberType();
+const booleanType = typeChecker.getBooleanType();
+const voidType = typeChecker.getVoidType();
+const undefinedType = typeChecker.getUndefinedType();
+const unknownType = typeChecker.getUnknownType();
+const bigIntType = typeChecker.getBigIntType();
+
+// Literal types
+const helloType = typeChecker.getStringLiteralType('hello');
+const fortyTwoType = typeChecker.getNumberLiteralType(42);
+const trueType = typeChecker.getTrueType();
+const falseType = typeChecker.getFalseType();
+```
+
+## Complete Example
+
+```typescript
+import * as ts from 'typescript';
+
+function analyzeSourceFile(fileName: string) {
+  const program = ts.createProgram([fileName], {
+    target: ts.ScriptTarget.ES2020
+  });
+  
+  const typeChecker = program.getTypeChecker();
+  const sourceFile = program.getSourceFile(fileName);
+  
+  if (!sourceFile) {
+    console.error('File not found');
+    return;
+  }
+  
+  function visit(node: ts.Node) {
+    // Analyze function declarations
+    if (ts.isFunctionDeclaration(node) && node.name) {
+      const symbol = typeChecker.getSymbolAtLocation(node.name);
+      if (symbol) {
+        console.log(`\nFunction: ${symbol.name}`);
+        
+        const type = typeChecker.getTypeOfSymbolAtLocation(symbol, node);
+        const signatures = typeChecker.getSignaturesOfType(type, ts.SignatureKind.Call);
+        
+        signatures.forEach(sig => {
+          const returnType = typeChecker.getReturnTypeOfSignature(sig);
+          console.log(`  Returns: ${typeChecker.typeToString(returnType)}`);
+          console.log(`  Signature: ${typeChecker.signatureToString(sig)}`);
+        });
+      }
+    }
+    
+    // Analyze variable declarations
+    if (ts.isVariableDeclaration(node) && node.name) {
+      const symbol = typeChecker.getSymbolAtLocation(node.name);
+      if (symbol) {
+        const type = typeChecker.getTypeOfSymbolAtLocation(symbol, node);
+        console.log(`\nVariable: ${symbol.name}`);
+        console.log(`  Type: ${typeChecker.typeToString(type)}`);
+      }
+    }
+    
+    // Analyze class declarations
+    if (ts.isClassDeclaration(node) && node.name) {
+      const symbol = typeChecker.getSymbolAtLocation(node.name);
+      if (symbol) {
+        console.log(`\nClass: ${symbol.name}`);
+        
+        const type = typeChecker.getDeclaredTypeOfSymbol(symbol) as ts.InterfaceType;
+        const properties = typeChecker.getPropertiesOfType(type);
+        
+        console.log('  Properties:');
+        properties.forEach(prop => {
+          const propType = typeChecker.getTypeOfSymbolAtLocation(prop, node);
+          console.log(`    ${prop.name}: ${typeChecker.typeToString(propType)}`);
+        });
+        
+        const baseTypes = typeChecker.getBaseTypes(type);
+        if (baseTypes.length > 0) {
+          console.log('  Extends:');
+          baseTypes.forEach(base => {
+            console.log(`    ${typeChecker.typeToString(base)}`);
+          });
+        }
+      }
+    }
+    
+    ts.forEachChild(node, visit);
+  }
+  
+  visit(sourceFile);
+}
+
+analyzeSourceFile('./src/index.ts');
+```
+
+## See Also
+
+- [Compiler API Overview](/api/compiler-api-overview)
+- [Program API](/api/program)
+- [Working with Symbols and Types](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API#using-the-type-checker)

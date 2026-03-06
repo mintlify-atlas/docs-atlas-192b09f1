@@ -1,0 +1,620 @@
+---
+title: 'Mixins'
+description: 'Type-safe mixin patterns in TypeScript for code reuse'
+---
+
+# Mixins
+
+Mixins are a pattern for reusing code across multiple classes without using traditional inheritance. TypeScript provides excellent support for type-safe mixins, allowing you to compose behaviors from multiple sources.
+
+## What are Mixins?
+
+Mixins allow you to combine multiple classes into one, incorporating methods and properties from each. This is particularly useful when:
+
+- You need to share functionality across unrelated classes
+- You want to avoid deep inheritance hierarchies
+- You need multiple inheritance-like behavior
+- You're implementing cross-cutting concerns
+
+<Info>
+  Mixins are a form of composition over inheritance, promoting more flexible and maintainable code.
+</Info>
+
+## Basic Mixin Pattern
+
+The fundamental mixin pattern in TypeScript uses a function that takes a base class and returns a new class that extends it.
+
+### Simple Mixin Example
+
+```typescript
+// Base class
+class Animal {
+  name: string;
+  constructor(name: string) {
+    this.name = name;
+  }
+}
+
+// Mixin function
+function Flyable<TBase extends new (...args: any[]) => any>(Base: TBase) {
+  return class extends Base {
+    fly() {
+      console.log(`${this.name} is flying`);
+    }
+    
+    altitude: number = 0;
+    
+    setAltitude(altitude: number) {
+      this.altitude = altitude;
+      console.log(`${this.name} is now at ${altitude} meters`);
+    }
+  };
+}
+
+// Applying the mixin
+class Bird extends Flyable(Animal) {
+  constructor(name: string) {
+    super(name);
+  }
+}
+
+const eagle = new Bird("Eagle");
+eagle.fly(); // "Eagle is flying"
+eagle.setAltitude(1000); // "Eagle is now at 1000 meters"
+```
+
+### Type-Safe Constructor Constraint
+
+The constraint `TBase extends new (...args: any[]) => any` ensures:
+- `TBase` is a constructor function
+- It can be called with `new`
+- It returns any type of object
+- The mixin can extend it safely
+
+## Real-World Mixin Implementation
+
+Here's a practical example from the TypeScript source code implementing mixins for test utilities:
+
+```typescript
+type Constructor<T = {}> = new (...args: any[]) => T;
+
+// Mixin function with proper typing
+function mixin<T extends Constructor>(
+  base: T,
+  ...mixins: ((klass: T) => T)[]
+) {
+  return mixins.reduce((c, m) => m(c), base);
+}
+
+// Timeout mixin
+function Timeout<T extends Constructor>(base: T) {
+  return class extends base {
+    timeout(ms: number) {
+      console.log(`Setting timeout to ${ms}ms`);
+      return this;
+    }
+  };
+}
+
+// Clone mixin
+function Clone<T extends Constructor>(base: T) {
+  return class extends base {
+    clone() {
+      return Object.assign(Object.create(this), this);
+    }
+  };
+}
+
+// Base class
+class Task {
+  name: string;
+  constructor(name: string) {
+    this.name = name;
+  }
+  
+  run() {
+    console.log(`Running task: ${this.name}`);
+  }
+}
+
+// Apply multiple mixins
+class EnhancedTask extends mixin(Task, Timeout, Clone) {
+  constructor(name: string) {
+    super(name);
+  }
+}
+
+const task = new EnhancedTask("Build");
+task.timeout(5000);
+const clonedTask = task.clone();
+```
+
+## Advanced Mixin Patterns
+
+### Mixin with State
+
+```typescript
+type Constructor<T = {}> = new (...args: any[]) => T;
+
+// Timestamped mixin - adds creation and update timestamps
+function Timestamped<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    createdAt: Date = new Date();
+    updatedAt: Date = new Date();
+
+    update() {
+      this.updatedAt = new Date();
+    }
+
+    getAge(): number {
+      return Date.now() - this.createdAt.getTime();
+    }
+  };
+}
+
+// Activatable mixin - adds activation state
+function Activatable<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    private isActive: boolean = false;
+
+    activate() {
+      this.isActive = true;
+      console.log("Activated");
+    }
+
+    deactivate() {
+      this.isActive = false;
+      console.log("Deactivated");
+    }
+
+    getStatus(): string {
+      return this.isActive ? "active" : "inactive";
+    }
+  };
+}
+
+// Using multiple mixins
+class User {
+  constructor(public username: string) {}
+}
+
+class TrackedUser extends Timestamped(Activatable(User)) {
+  constructor(username: string) {
+    super(username);
+  }
+}
+
+const user = new TrackedUser("john_doe");
+user.activate();
+console.log(user.getAge()); // Time since creation
+console.log(user.getStatus()); // "active"
+```
+
+### Mixin with Accessor Properties
+
+Based on TypeScript's conformance tests for mixin accessors:
+
+```typescript
+type Constructor<T = {}> = new (...args: any[]) => T;
+
+function Validated<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    private _validationTarget: HTMLElement | null = null;
+
+    get validationTarget(): HTMLElement {
+      if (!this._validationTarget) {
+        this._validationTarget = document.createElement("input");
+      }
+      return this._validationTarget;
+    }
+
+    validate(): boolean {
+      const element = this.validationTarget;
+      // Perform validation logic
+      return element.checkValidity();
+    }
+  };
+}
+
+class FormField {
+  constructor(public name: string) {}
+}
+
+class ValidatedField extends Validated(FormField) {
+  constructor(name: string) {
+    super(name);
+  }
+  
+  // Can override the accessor
+  get validationTarget(): HTMLElement {
+    return document.createElement("select");
+  }
+}
+
+const field = new ValidatedField("email");
+const isValid = field.validate();
+```
+
+### Conditional Mixins
+
+```typescript
+type Constructor<T = {}> = new (...args: any[]) => T;
+
+function Loggable<TBase extends Constructor>(Base: TBase, enable: boolean = true) {
+  if (!enable) {
+    return Base; // Return unchanged if disabled
+  }
+
+  return class extends Base {
+    log(message: string) {
+      console.log(`[${new Date().toISOString()}] ${message}`);
+    }
+
+    logError(error: Error) {
+      console.error(`[ERROR] ${error.message}`);
+    }
+  };
+}
+
+class Service {
+  name: string;
+  constructor(name: string) {
+    this.name = name;
+  }
+}
+
+// Conditionally apply logging
+const isDevelopment = process.env.NODE_ENV === "development";
+class ProductionService extends Loggable(Service, isDevelopment) {
+  constructor() {
+    super("ProductionService");
+  }
+}
+```
+
+## Mixin Factory Pattern
+
+Create reusable mixin factories for common patterns:
+
+```typescript
+type Constructor<T = {}> = new (...args: any[]) => T;
+
+// Generic disposable pattern
+function Disposable<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    private disposed: boolean = false;
+    private resources: (() => void)[] = [];
+
+    protected addResource(cleanup: () => void) {
+      this.resources.push(cleanup);
+    }
+
+    dispose() {
+      if (this.disposed) return;
+      
+      this.resources.forEach(cleanup => cleanup());
+      this.resources = [];
+      this.disposed = true;
+    }
+
+    isDisposed(): boolean {
+      return this.disposed;
+    }
+  };
+}
+
+// Generic event emitter pattern
+function EventEmitter<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    private listeners = new Map<string, Function[]>();
+
+    on(event: string, callback: Function) {
+      if (!this.listeners.has(event)) {
+        this.listeners.set(event, []);
+      }
+      this.listeners.get(event)!.push(callback);
+    }
+
+    emit(event: string, ...args: any[]) {
+      const callbacks = this.listeners.get(event) || [];
+      callbacks.forEach(callback => callback(...args));
+    }
+
+    off(event: string, callback: Function) {
+      const callbacks = this.listeners.get(event) || [];
+      const index = callbacks.indexOf(callback);
+      if (index > -1) {
+        callbacks.splice(index, 1);
+      }
+    }
+  };
+}
+
+// Combine multiple mixins
+class Connection {
+  constructor(public url: string) {}
+  
+  connect() {
+    console.log(`Connecting to ${this.url}`);
+  }
+}
+
+class ManagedConnection extends EventEmitter(Disposable(Connection)) {
+  constructor(url: string) {
+    super(url);
+    
+    this.addResource(() => {
+      console.log("Cleaning up connection");
+    });
+  }
+  
+  connect() {
+    super.connect();
+    this.emit("connected");
+  }
+}
+
+const conn = new ManagedConnection("https://api.example.com");
+conn.on("connected", () => console.log("Connection established"));
+conn.connect();
+conn.dispose();
+```
+
+## Type Inference with Mixins
+
+TypeScript's type system can infer the final type of mixed classes:
+
+```typescript
+type Constructor<T = {}> = new (...args: any[]) => T;
+
+// Utility type to get instance type from constructor
+type InstanceType<T> = T extends new (...args: any[]) => infer R ? R : any;
+
+function Serializable<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    serialize(): string {
+      return JSON.stringify(this);
+    }
+    
+    static deserialize(json: string): InstanceType<typeof Base> {
+      return JSON.parse(json);
+    }
+  };
+}
+
+function Comparable<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    equals(other: this): boolean {
+      return JSON.stringify(this) === JSON.stringify(other);
+    }
+  };
+}
+
+class Point {
+  constructor(public x: number, public y: number) {}
+}
+
+const MixedPoint = Comparable(Serializable(Point));
+type MixedPointType = InstanceType<typeof MixedPoint>;
+
+const p1 = new MixedPoint(10, 20);
+const json = p1.serialize();
+const p2 = new MixedPoint(10, 20);
+console.log(p1.equals(p2)); // true
+```
+
+## Mixin Constraints
+
+Sometimes you need to constrain what types a mixin can be applied to:
+
+```typescript
+// Constraint: Base must have an 'id' property
+interface HasId {
+  id: string | number;
+}
+
+type HasIdConstructor = new (...args: any[]) => HasId;
+
+function Auditable<TBase extends HasIdConstructor>(Base: TBase) {
+  return class extends Base {
+    private auditLog: Array<{ action: string; timestamp: Date }> = [];
+
+    logAction(action: string) {
+      this.auditLog.push({
+        action: `${action} (ID: ${this.id})`,
+        timestamp: new Date(),
+      });
+    }
+
+    getAuditLog() {
+      return [...this.auditLog];
+    }
+  };
+}
+
+// This works - has 'id' property
+class Document {
+  constructor(public id: string, public title: string) {}
+}
+
+class AuditedDocument extends Auditable(Document) {}
+
+const doc = new AuditedDocument("doc-123", "My Document");
+doc.logAction("created");
+doc.logAction("updated");
+console.log(doc.getAuditLog());
+
+// This would fail - no 'id' property
+// class NoId {}
+// class AuditedNoId extends Auditable(NoId) {} // Error!
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep Mixins Focused">
+    Each mixin should provide a single, well-defined piece of functionality. Don't create "god mixins" that do too much.
+    
+    ```typescript
+    // Good: Focused mixin
+    function Timestamped<T extends Constructor>(Base: T) {
+      return class extends Base {
+        timestamp = Date.now();
+      };
+    }
+    
+    // Bad: Mixin doing too much
+    function Everything<T extends Constructor>(Base: T) {
+      return class extends Base {
+        timestamp = Date.now();
+        log() {}
+        validate() {}
+        serialize() {}
+        // ... too many responsibilities
+      };
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Use Type Constraints">
+    Add constraints to ensure mixins are applied to appropriate base classes.
+    
+    ```typescript
+    // Good: Constrained mixin
+    interface Named {
+      name: string;
+    }
+    
+    function Greetable<T extends Constructor<Named>>(Base: T) {
+      return class extends Base {
+        greet() {
+          console.log(`Hello, ${this.name}`);
+        }
+      };
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Document Mixin Dependencies">
+    Clearly document what properties or methods a mixin expects or provides.
+    
+    ```typescript
+    /**
+     * Adds validation functionality to a class.
+     * 
+     * Requires:
+     * - Base class must have a 'validationTarget' property
+     * 
+     * Provides:
+     * - validate(): boolean method
+     * - isValid(): boolean method
+     */
+    function Validatable<T extends Constructor>(Base: T) {
+      // implementation
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Avoid Mixin Conflicts">
+    Be careful when combining mixins that might have conflicting properties or methods.
+    
+    ```typescript
+    // Potential conflict - both define 'dispose'
+    class A extends Disposable(EventEmitter(Base)) {
+      // If both mixins define dispose(), there will be a conflict
+    }
+    
+    // Better: Use namespacing or prefixes
+    function EventEmitterMixin<T>(Base: T) {
+      return class extends Base {
+        emitterDispose() { /* ... */ }
+      };
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Mixins vs. Other Patterns
+
+<Tabs>
+  <Tab title="Mixins vs. Inheritance">
+    **Mixins:**
+    - Horizontal composition
+    - Multiple sources of behavior
+    - More flexible
+    
+    **Inheritance:**
+    - Vertical hierarchy
+    - Single parent class
+    - Simpler mental model
+    
+    Use mixins when you need to combine behaviors from multiple sources.
+  </Tab>
+  
+  <Tab title="Mixins vs. Composition">
+    **Mixins:**
+    - Behavior added to class prototype
+    - Shared through inheritance
+    - Access to `this` context
+    
+    **Composition:**
+    - Behavior delegated to separate objects
+    - More explicit dependencies
+    - Easier to test in isolation
+    
+    Use composition for loose coupling, mixins for shared behavior.
+  </Tab>
+  
+  <Tab title="Mixins vs. Decorators">
+    **Mixins:**
+    - Add properties and methods
+    - Modify class structure
+    - Applied at class definition time
+    
+    **Decorators:**
+    - Modify behavior of existing members
+    - Meta-programming
+    - More granular control
+    
+    Mixins and decorators complement each other well.
+  </Tab>
+</Tabs>
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Cross-Cutting Concerns" icon="intersection">
+    Logging, monitoring, authentication across multiple classes
+  </Card>
+  <Card title="Behavior Composition" icon="layer-group">
+    Combining multiple behaviors without deep inheritance
+  </Card>
+  <Card title="Framework Extensions" icon="puzzle-piece">
+    Adding functionality to framework base classes
+  </Card>
+  <Card title="Feature Flags" icon="flag">
+    Conditionally adding features based on configuration
+  </Card>
+</CardGroup>
+
+## Limitations and Considerations
+
+<Warning>
+  Mixins have some limitations to be aware of:
+  
+  1. **No static type checking across mixins**: TypeScript can't always infer the combined type perfectly
+  2. **Runtime overhead**: Each mixin adds a layer to the prototype chain
+  3. **Debugging complexity**: Stack traces can be harder to follow
+  4. **Name collisions**: Multiple mixins might define the same property
+</Warning>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Decorators" icon="at" href="/advanced/decorators">
+    Combine mixins with decorators for powerful patterns
+  </Card>
+  <Card title="Type Checker" icon="magnifying-glass" href="/api/type-checker">
+    Understand type inference with mixins
+  </Card>
+</CardGroup>

@@ -1,0 +1,599 @@
+---
+title: "Parser API"
+description: "Documentation for the TypeScript Parser and AST creation"
+---
+
+## Overview
+
+The Parser converts a stream of tokens from the Scanner into an Abstract Syntax Tree (AST). The AST is a tree representation of the source code structure that can be analyzed and transformed.
+
+## Creating Source Files
+
+### ts.createSourceFile()
+
+Creates a SourceFile AST from source text.
+
+<ParamField path="fileName" type="string" required>
+  The name of the file
+</ParamField>
+
+<ParamField path="sourceText" type="string" required>
+  The source code text
+</ParamField>
+
+<ParamField path="languageVersionOrOptions" type="ScriptTarget | CreateSourceFileOptions" required>
+  Either a script target or options object
+</ParamField>
+
+<ParamField path="setParentNodes" type="boolean">
+  Whether to set parent pointers on nodes (defaults to false)
+</ParamField>
+
+<ParamField path="scriptKind" type="ScriptKind">
+  The kind of script (TS, JS, JSX, etc.)
+</ParamField>
+
+<ResponseField name="return" type="SourceFile">
+  The parsed source file AST
+</ResponseField>
+
+### Example
+
+```typescript
+import * as ts from 'typescript';
+
+// Simple usage
+const sourceFile = ts.createSourceFile(
+  'example.ts',
+  'const x: number = 42;',
+  ts.ScriptTarget.Latest,
+  true // setParentNodes
+);
+
+// With options
+const sourceFile2 = ts.createSourceFile(
+  'example.tsx',
+  'const component = <div>Hello</div>;',
+  {
+    languageVersion: ts.ScriptTarget.ES2020,
+  },
+  true,
+  ts.ScriptKind.TSX
+);
+```
+
+## SourceFile Interface
+
+The SourceFile represents the root of the AST and provides access to the parsed code structure.
+
+### Key Properties
+
+```typescript
+interface SourceFile extends Node {
+  fileName: string;              // The file name
+  text: string;                  // The full source text
+  statements: NodeArray<Statement>; // Top-level statements
+  endOfFileToken: Token<SyntaxKind.EndOfFileToken>;
+  
+  // Helper methods
+  getLineAndCharacterOfPosition(pos: number): LineAndCharacter;
+  getPositionOfLineAndCharacter(line: number, character: number): number;
+  getLineStarts(): readonly number[];
+  getLineEndOfPosition(pos: number): number;
+}
+```
+
+### Example
+
+```typescript
+const sourceFile = ts.createSourceFile(
+  'example.ts',
+  `const x = 1;
+const y = 2;`,
+  ts.ScriptTarget.Latest,
+  true
+);
+
+console.log(`File: ${sourceFile.fileName}`);
+console.log(`Statements: ${sourceFile.statements.length}`);
+
+// Get line and character from position
+const pos = 15; // position in the source
+const { line, character } = sourceFile.getLineAndCharacterOfPosition(pos);
+console.log(`Position ${pos} is at line ${line + 1}, column ${character + 1}`);
+
+// Get position from line and character
+const position = sourceFile.getPositionOfLineAndCharacter(1, 0);
+console.log(`Line 2, column 1 starts at position ${position}`);
+```
+
+## Working with the AST
+
+### Node Types
+
+The AST consists of various node types, all extending the base `Node` interface:
+
+```typescript
+interface Node {
+  kind: SyntaxKind;              // The type of node
+  pos: number;                   // Start position (includes trivia)
+  end: number;                   // End position
+  flags: NodeFlags;              // Node flags
+  parent?: Node;                 // Parent node (if setParentNodes was true)
+  
+  // Methods
+  getSourceFile(): SourceFile;
+  getChildCount(sourceFile?: SourceFile): number;
+  getChildAt(index: number, sourceFile?: SourceFile): Node;
+  getChildren(sourceFile?: SourceFile): Node[];
+  getStart(sourceFile?: SourceFile, includeJsDocComment?: boolean): number;
+  getFullStart(): number;
+  getEnd(): number;
+  getWidth(sourceFile?: SourceFile): number;
+  getFullWidth(): number;
+  getLeadingTriviaWidth(sourceFile?: SourceFile): number;
+  getFullText(sourceFile?: SourceFile): string;
+  getText(sourceFile?: SourceFile): string;
+}
+```
+
+### Traversing the AST
+
+#### ts.forEachChild()
+
+Visits each child node of a node.
+
+<ParamField path="node" type="Node" required>
+  The node to visit children of
+</ParamField>
+
+<ParamField path="cbNode" type="(node: Node) => T | undefined" required>
+  Callback for each child node
+</ParamField>
+
+<ResponseField name="return" type="T | undefined">
+  The first truthy value returned by the callback
+</ResponseField>
+
+```typescript
+function visit(node: ts.Node) {
+  console.log(`Node: ${ts.SyntaxKind[node.kind]}`);
+  
+  ts.forEachChild(node, visit);
+}
+
+const sourceFile = ts.createSourceFile(
+  'example.ts',
+  'function add(a: number, b: number) { return a + b; }',
+  ts.ScriptTarget.Latest,
+  true
+);
+
+visit(sourceFile);
+```
+
+#### Recursive Visitor Pattern
+
+```typescript
+function visitNode(node: ts.Node, depth: number = 0): void {
+  const indent = '  '.repeat(depth);
+  console.log(`${indent}${ts.SyntaxKind[node.kind]}`);
+  
+  // Visit all children recursively
+  ts.forEachChild(node, (child) => visitNode(child, depth + 1));
+}
+
+const sourceFile = ts.createSourceFile(
+  'example.ts',
+  `
+  class Person {
+    constructor(public name: string) {}
+    
+    greet() {
+      return "Hello, " + this.name;
+    }
+  }
+  `,
+  ts.ScriptTarget.Latest,
+  true
+);
+
+visitNode(sourceFile);
+```
+
+### Type Guards
+
+TypeScript provides type guard functions to check node types:
+
+```typescript
+import * as ts from 'typescript';
+
+function analyzeNode(node: ts.Node) {
+  if (ts.isVariableStatement(node)) {
+    console.log('Variable statement');
+  } else if (ts.isFunctionDeclaration(node)) {
+    console.log('Function declaration');
+    if (node.name) {
+      console.log(`  Name: ${node.name.text}`);
+    }
+  } else if (ts.isClassDeclaration(node)) {
+    console.log('Class declaration');
+    if (node.name) {
+      console.log(`  Name: ${node.name.text}`);
+    }
+  } else if (ts.isInterfaceDeclaration(node)) {
+    console.log('Interface declaration');
+  } else if (ts.isTypeAliasDeclaration(node)) {
+    console.log('Type alias declaration');
+  }
+}
+```
+
+Common type guards:
+
+```typescript
+// Declarations
+ts.isFunctionDeclaration(node)
+ts.isClassDeclaration(node)
+ts.isInterfaceDeclaration(node)
+ts.isVariableDeclaration(node)
+ts.isMethodDeclaration(node)
+ts.isPropertyDeclaration(node)
+ts.isParameter(node)
+
+// Statements
+ts.isIfStatement(node)
+ts.isForStatement(node)
+ts.isWhileStatement(node)
+ts.isReturnStatement(node)
+ts.isExpressionStatement(node)
+ts.isBlock(node)
+
+// Expressions
+ts.isBinaryExpression(node)
+ts.isCallExpression(node)
+ts.isPropertyAccessExpression(node)
+ts.isElementAccessExpression(node)
+ts.isIdentifier(node)
+ts.isStringLiteral(node)
+ts.isNumericLiteral(node)
+ts.isArrowFunction(node)
+
+// Types
+ts.isTypeReferenceNode(node)
+ts.isArrayTypeNode(node)
+ts.isUnionTypeNode(node)
+ts.isIntersectionTypeNode(node)
+ts.isFunctionTypeNode(node)
+```
+
+## Analyzing Specific Constructs
+
+### Analyzing Functions
+
+```typescript
+import * as ts from 'typescript';
+
+function analyzeFunctions(sourceFile: ts.SourceFile) {
+  function visit(node: ts.Node) {
+    if (ts.isFunctionDeclaration(node)) {
+      console.log('\nFunction Declaration:');
+      
+      // Name
+      if (node.name) {
+        console.log(`  Name: ${node.name.text}`);
+      }
+      
+      // Parameters
+      console.log('  Parameters:');
+      node.parameters.forEach(param => {
+        const name = param.name.getText(sourceFile);
+        const type = param.type ? param.type.getText(sourceFile) : 'any';
+        console.log(`    ${name}: ${type}`);
+      });
+      
+      // Return type
+      if (node.type) {
+        console.log(`  Return type: ${node.type.getText(sourceFile)}`);
+      }
+      
+      // Modifiers
+      if (node.modifiers) {
+        const modifiers = node.modifiers
+          .map(m => ts.SyntaxKind[m.kind])
+          .join(', ');
+        console.log(`  Modifiers: ${modifiers}`);
+      }
+    }
+    
+    ts.forEachChild(node, visit);
+  }
+  
+  visit(sourceFile);
+}
+
+const code = `
+export async function fetchData(url: string, options?: RequestInit): Promise<Response> {
+  return fetch(url, options);
+}
+`;
+
+const sourceFile = ts.createSourceFile('example.ts', code, ts.ScriptTarget.Latest, true);
+analyzeFunctions(sourceFile);
+```
+
+### Analyzing Classes
+
+```typescript
+import * as ts from 'typescript';
+
+function analyzeClasses(sourceFile: ts.SourceFile) {
+  function visit(node: ts.Node) {
+    if (ts.isClassDeclaration(node)) {
+      console.log('\nClass Declaration:');
+      
+      // Name
+      if (node.name) {
+        console.log(`  Name: ${node.name.text}`);
+      }
+      
+      // Heritage (extends/implements)
+      if (node.heritageClauses) {
+        node.heritageClauses.forEach(clause => {
+          const keyword = clause.token === ts.SyntaxKind.ExtendsKeyword 
+            ? 'extends' 
+            : 'implements';
+          const types = clause.types
+            .map(t => t.expression.getText(sourceFile))
+            .join(', ');
+          console.log(`  ${keyword}: ${types}`);
+        });
+      }
+      
+      // Members
+      console.log('  Members:');
+      node.members.forEach(member => {
+        if (ts.isPropertyDeclaration(member)) {
+          const name = member.name.getText(sourceFile);
+          const type = member.type ? member.type.getText(sourceFile) : 'any';
+          console.log(`    Property: ${name}: ${type}`);
+        } else if (ts.isMethodDeclaration(member)) {
+          const name = member.name.getText(sourceFile);
+          console.log(`    Method: ${name}()`);
+        } else if (ts.isConstructorDeclaration(member)) {
+          console.log(`    Constructor`);
+        }
+      });
+    }
+    
+    ts.forEachChild(node, visit);
+  }
+  
+  visit(sourceFile);
+}
+
+const code = `
+class Animal {
+  constructor(public name: string) {}
+}
+
+class Dog extends Animal {
+  breed: string;
+  
+  constructor(name: string, breed: string) {
+    super(name);
+    this.breed = breed;
+  }
+  
+  bark(): void {
+    console.log('Woof!');
+  }
+}
+`;
+
+const sourceFile = ts.createSourceFile('example.ts', code, ts.ScriptTarget.Latest, true);
+analyzeClasses(sourceFile);
+```
+
+### Analyzing Imports and Exports
+
+```typescript
+import * as ts from 'typescript';
+
+function analyzeImportsExports(sourceFile: ts.SourceFile) {
+  function visit(node: ts.Node) {
+    if (ts.isImportDeclaration(node)) {
+      console.log('\nImport:');
+      
+      // Module specifier
+      const moduleSpecifier = node.moduleSpecifier;
+      if (ts.isStringLiteral(moduleSpecifier)) {
+        console.log(`  From: ${moduleSpecifier.text}`);
+      }
+      
+      // Import clause
+      if (node.importClause) {
+        const clause = node.importClause;
+        
+        // Default import
+        if (clause.name) {
+          console.log(`  Default: ${clause.name.text}`);
+        }
+        
+        // Named imports
+        if (clause.namedBindings) {
+          if (ts.isNamedImports(clause.namedBindings)) {
+            const names = clause.namedBindings.elements
+              .map(e => e.name.text)
+              .join(', ');
+            console.log(`  Named: { ${names} }`);
+          } else if (ts.isNamespaceImport(clause.namedBindings)) {
+            console.log(`  Namespace: * as ${clause.namedBindings.name.text}`);
+          }
+        }
+      }
+    } else if (ts.isExportDeclaration(node)) {
+      console.log('\nExport:');
+      
+      if (node.exportClause && ts.isNamedExports(node.exportClause)) {
+        const names = node.exportClause.elements
+          .map(e => e.name.text)
+          .join(', ');
+        console.log(`  Named: { ${names} }`);
+      }
+      
+      if (node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+        console.log(`  From: ${node.moduleSpecifier.text}`);
+      }
+    } else if (ts.isExportAssignment(node)) {
+      console.log('\nExport default');
+    }
+    
+    ts.forEachChild(node, visit);
+  }
+  
+  visit(sourceFile);
+}
+
+const code = `
+import fs from 'fs';
+import { readFile, writeFile } from 'fs/promises';
+import * as path from 'path';
+
+export { readFile };
+export default class MyClass {}
+`;
+
+const sourceFile = ts.createSourceFile('example.ts', code, ts.ScriptTarget.Latest, true);
+analyzeImportsExports(sourceFile);
+```
+
+## Node Position Information
+
+```typescript
+import * as ts from 'typescript';
+
+function showPositions(node: ts.Node, sourceFile: ts.SourceFile) {
+  // Full start includes leading trivia (whitespace, comments)
+  const fullStart = node.getFullStart();
+  
+  // Start excludes leading trivia
+  const start = node.getStart(sourceFile);
+  
+  // End position
+  const end = node.getEnd();
+  
+  // Widths
+  const fullWidth = node.getFullWidth();
+  const width = node.getWidth(sourceFile);
+  const leadingTriviaWidth = node.getLeadingTriviaWidth(sourceFile);
+  
+  // Text
+  const fullText = node.getFullText(sourceFile);
+  const text = node.getText(sourceFile);
+  
+  console.log('Position info:');
+  console.log(`  Full range: ${fullStart} - ${end}`);
+  console.log(`  Text range: ${start} - ${end}`);
+  console.log(`  Leading trivia: ${leadingTriviaWidth} chars`);
+  console.log(`  Full text: "${fullText}"`);
+  console.log(`  Text: "${text}"`);
+  
+  // Line and character
+  const { line, character } = sourceFile.getLineAndCharacterOfPosition(start);
+  console.log(`  Location: line ${line + 1}, column ${character + 1}`);
+}
+```
+
+## Complete Example: Code Analyzer
+
+```typescript
+import * as ts from 'typescript';
+
+interface CodeStats {
+  functions: number;
+  classes: number;
+  interfaces: number;
+  variables: number;
+  imports: number;
+  exports: number;
+  lines: number;
+}
+
+function analyzeCode(fileName: string, sourceText: string): CodeStats {
+  const sourceFile = ts.createSourceFile(
+    fileName,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true
+  );
+  
+  const stats: CodeStats = {
+    functions: 0,
+    classes: 0,
+    interfaces: 0,
+    variables: 0,
+    imports: 0,
+    exports: 0,
+    lines: sourceFile.getLineStarts().length
+  };
+  
+  function visit(node: ts.Node) {
+    if (ts.isFunctionDeclaration(node)) {
+      stats.functions++;
+    } else if (ts.isClassDeclaration(node)) {
+      stats.classes++;
+    } else if (ts.isInterfaceDeclaration(node)) {
+      stats.interfaces++;
+    } else if (ts.isVariableStatement(node)) {
+      node.declarationList.declarations.forEach(() => {
+        stats.variables++;
+      });
+    } else if (ts.isImportDeclaration(node)) {
+      stats.imports++;
+    } else if (ts.isExportDeclaration(node) || ts.isExportAssignment(node)) {
+      stats.exports++;
+    }
+    
+    ts.forEachChild(node, visit);
+  }
+  
+  visit(sourceFile);
+  
+  return stats;
+}
+
+// Example usage
+const code = `
+import { Component } from 'react';
+
+interface Props {
+  name: string;
+}
+
+class MyComponent extends Component<Props> {
+  render() {
+    return <div>{this.props.name}</div>;
+  }
+}
+
+export default MyComponent;
+`;
+
+const stats = analyzeCode('component.tsx', code);
+console.log('Code Statistics:');
+console.log(`  Lines: ${stats.lines}`);
+console.log(`  Functions: ${stats.functions}`);
+console.log(`  Classes: ${stats.classes}`);
+console.log(`  Interfaces: ${stats.interfaces}`);
+console.log(`  Variables: ${stats.variables}`);
+console.log(`  Imports: ${stats.imports}`);
+console.log(`  Exports: ${stats.exports}`);
+```
+
+## See Also
+
+- [Compiler API Overview](/api/compiler-api-overview)
+- [Scanner API](/api/scanner)
+- [TypeChecker API](/api/type-checker)
+- [AST Viewer](https://ts-ast-viewer.com/) - Interactive AST visualization tool

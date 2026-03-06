@@ -1,0 +1,199 @@
+---
+title: Getting Started
+description: Learn how to set up your development environment and start contributing to TypeScript
+---
+
+<Warning>
+**Important Note**: All code changes should be submitted to the [typescript-go repo](https://github.com/microsoft/typescript-go). Development in this codebase [is winding down](https://devblogs.microsoft.com/typescript/progress-on-typescript-7-december-2025/#typescript-6.0-is-the-last-javascript-based-release) and PRs will only be merged if they fix **critical** 6.0 issues.
+</Warning>
+
+## Prerequisites
+
+Before you start contributing to TypeScript, you'll need:
+
+<Steps>
+  <Step title="Find an Issue">
+    Browse [Help Wanted issues](https://github.com/microsoft/TypeScript/issues?q=is%3Aissue+label%3A%22Help+Wanted%22) to find a bug or feature to work on.
+  </Step>
+  
+  <Step title="Set Up GitHub">
+    Create a [GitHub account](https://github.com/join) if you don't already have one.
+  </Step>
+  
+  <Step title="Install Node.js">
+    Download and install [Node.js](https://nodejs.org). Both Current and LTS versions work.
+    
+    ```bash
+    node --version  # Verify installation (requires >= 14.17)
+    ```
+  </Step>
+  
+  <Step title="Choose Your Editor">
+    [VS Code](https://code.visualstudio.com) is recommended for TypeScript development.
+  </Step>
+</Steps>
+
+## Initial Setup
+
+### Fork and Clone
+
+Create your own copy of TypeScript and clone it locally:
+
+<Steps>
+  <Step title="Fork the Repository">
+    Go to [github.com/microsoft/TypeScript](https://github.com/microsoft/TypeScript) and click **Fork**.
+  </Step>
+  
+  <Step title="Clone Your Fork">
+    ```bash
+    git clone --depth=1 https://github.com/YOUR_USERNAME/TypeScript.git
+    cd TypeScript
+    ```
+    
+    <Tip>The `--depth=1` flag speeds up cloning by fetching only recent history.</Tip>
+  </Step>
+</Steps>
+
+### Install Dependencies
+
+Install the hereby build tool and project dependencies:
+
+```bash
+# Install hereby globally
+npm install -g hereby
+
+# Install project dependencies
+npm ci
+```
+
+<Note>
+Use `npm ci` instead of `npm install` to ensure you get the exact dependency versions specified in `package-lock.json`.
+</Note>
+
+### Verify Your Setup
+
+Run the test suite to ensure everything is working:
+
+```bash
+hereby runtests-parallel
+```
+
+This command builds the compiler and runs all tests in parallel. It may take several minutes on the first run.
+
+## Development Container (Optional)
+
+If you prefer containerized development, TypeScript includes a dev container configuration:
+
+<Tabs>
+  <Tab title="Clone in Container">
+    Use VS Code's **Clone Repository in Container Volume** command to set up a fresh environment.
+  </Tab>
+  
+  <Tab title="Open Existing">
+    If you've already cloned the repository, use **Open Folder in Container** from VS Code.
+  </Tab>
+</Tabs>
+
+## Common Setup Issues
+
+<AccordionGroup>
+  <Accordion title="Filename too long on Windows">
+    Windows users may need to enable long paths:
+    
+    ```bash
+    git config --global core.longpaths true
+    ```
+    
+    Run this **before** cloning the repository.
+  </Accordion>
+  
+  <Accordion title="Out of memory errors">
+    If you encounter memory issues during build or test:
+    
+    ```bash
+    export NODE_OPTIONS="--max-old-space-size=4096"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Using Local Builds
+
+After making changes, build the compiler:
+
+```bash
+hereby local
+```
+
+Then use your local build instead of the installed TypeScript:
+
+```bash
+node built/local/tsc.js --version
+node built/local/tsc.js myfile.ts
+```
+
+<Tip>
+You can also run in watch mode:
+
+```bash
+node built/local/tsc.js --watch test.ts
+```
+</Tip>
+
+## Contribution Guidelines
+
+### Bug Fixes
+
+TypeScript accepts bug fixes that:
+
+- Have an approved issue (labeled "help wanted" or in the "Backlog" milestone)
+- Include a link to the issue in the PR description
+- Add tests that fail without the fix
+
+### Features
+
+Feature contributions:
+
+- Must be pre-approved by a TypeScript maintainer
+- Need to be labeled "help wanted" or in the "Backlog" milestone
+- Should not require language design changes
+- Cannot be adequately satisfied with external tools
+
+<Warning>
+Do not leave "I'm working on this" comments on issues. Many issues are harder than they appear, and such comments discourage others from trying. Just start working on issues marked "help wanted" - no permission needed!
+</Warning>
+
+## Before You Submit
+
+Before submitting a pull request, read the [Building](/contributing/building) and [Testing](/contributing/testing) guides to ensure your changes pass all checks.
+
+## Resources
+
+<CardGroup cols={2}>
+  <Card title="FAQ" icon="question" href="https://github.com/Microsoft/TypeScript/wiki/FAQ">
+    Common questions and answers
+  </Card>
+  
+  <Card title="Coding Guidelines" icon="code" href="https://github.com/Microsoft/TypeScript/wiki/Coding-guidelines">
+    Style and conventions
+  </Card>
+  
+  <Card title="Compiler Notes" icon="book" href="https://github.com/microsoft/TypeScript-Compiler-Notes">
+    Understand how the compiler works
+  </Card>
+  
+  <Card title="Stack Overflow" icon="stack-overflow" href="https://stackoverflow.com/questions/tagged/typescript">
+    Ask development questions
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Building" icon="hammer" href="/contributing/building">
+    Learn how to build TypeScript
+  </Card>
+  
+  <Card title="Testing" icon="vial" href="/contributing/testing">
+    Write and run tests
+  </Card>
+</CardGroup>

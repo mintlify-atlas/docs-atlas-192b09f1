@@ -1,0 +1,525 @@
+---
+title: Testing TypeScript
+description: Learn how to run tests and write new test cases for the TypeScript compiler
+---
+
+## Running Tests
+
+### Quick Test Run
+
+Run all tests in parallel (recommended):
+
+```bash
+hereby runtests-parallel
+```
+
+Or use the npm script:
+
+```bash
+npm test
+```
+
+This builds the test infrastructure and runs all test suites using multiple worker threads.
+
+<Note>
+By default, hereby uses one worker per CPU core. Adjust with `--workers=<number>`.
+</Note>
+
+### Serial Test Execution
+
+Run tests sequentially for debugging:
+
+```bash
+hereby runtests
+```
+
+## Test Suites
+
+TypeScript has several test suites organized by type:
+
+<Tabs>
+  <Tab title="Compiler Tests">
+    Tests in `tests/cases/compiler/` verify compiler behavior:
+    
+    ```bash
+    hereby runtests --tests=compiler
+    ```
+    
+    These test compilation, emit, and error detection.
+  </Tab>
+  
+  <Tab title="Conformance Tests">
+    Tests in `tests/cases/conformance/` verify spec compliance:
+    
+    ```bash
+    hereby runtests --tests=conformance
+    ```
+    
+    Organized by spec section (types, expressions, statements, etc.).
+  </Tab>
+  
+  <Tab title="FourSlash Tests">
+    Tests in `tests/cases/fourslash/` test language service features:
+    
+    ```bash
+    hereby runtests --tests=fourslash
+    ```
+    
+    Includes completions, refactorings, navigation, and more.
+  </Tab>
+  
+  <Tab title="Project Tests">
+    Tests in `tests/cases/projects/` test multi-file scenarios:
+    
+    ```bash
+    hereby runtests --tests=project
+    ```
+    
+    Tests project references and build mode.
+  </Tab>
+</Tabs>
+
+## Running Specific Tests
+
+### By Name Pattern
+
+Run tests matching a regex:
+
+```bash
+hereby runtests --tests=<pattern>
+```
+
+Examples:
+
+```bash
+# Run tests with "async" in the name
+hereby runtests --tests=async
+
+# Run a specific test file
+hereby runtests --tests=2dArrays
+
+# Run tests in a specific suite
+hereby runtests --tests=conformance/types
+```
+
+### By Runner
+
+Specify which test runner to use:
+
+```bash
+hereby runtests --runner=<runnerName>
+```
+
+Available runners:
+- `conformance` - Conformance suite
+- `compiler` - Compiler suite
+- `fourslash` - Language service suite
+- `project` - Project suite
+
+### From Failed Tests File
+
+Rerun previously failed tests:
+
+```bash
+hereby runtests --failed
+```
+
+Failed tests are tracked in `.failed-tests`.
+
+## Test Options
+
+<Tabs>
+  <Tab title="Common Options">
+    ```bash
+    # Light mode (faster, fewer verifications)
+    hereby runtests-parallel --light
+    
+    # Keep failed tests in .failed-tests even if they pass
+    hereby runtests --keepFailed
+    
+    # Don't clean test output directories first
+    hereby runtests --dirty
+    
+    # Custom timeout (default: 40000ms)
+    hereby runtests --timeout=60000
+    
+    # Disable colors
+    hereby runtests --no-color
+    ```
+  </Tab>
+  
+  <Tab title="Advanced Options">
+    ```bash
+    # Custom stack trace limit
+    hereby runtests --stackTraceLimit=50
+    hereby runtests --stackTraceLimit=full
+    
+    # Generate code coverage with c8
+    hereby runtests-parallel --coverage
+    
+    # Run on a specific shard (for CI)
+    hereby runtests-parallel --shards=4 --shardId=1
+    
+    # Use built compiler instead of LKG
+    hereby runtests --built
+    
+    # Specify number of parallel workers
+    hereby runtests-parallel --workers=8
+    ```
+  </Tab>
+  
+  <Tab title="Reporters">
+    ```bash
+    # Default parallel reporter (minimal output)
+    hereby runtests-parallel --reporter=min
+    
+    # Five-line format (serial runs)
+    hereby runtests --reporter=mocha-fivemat-progress-reporter
+    
+    # Mocha's spec reporter
+    hereby runtests --reporter=spec
+    
+    # Mocha's dot reporter
+    hereby runtests --reporter=dot
+    ```
+  </Tab>
+</Tabs>
+
+## Watch Mode
+
+Automatically rerun tests when files change:
+
+```bash
+hereby runtests-watch --tests=<pattern>
+```
+
+<Note>
+You **must** specify `--tests` or `--failed` to use watch mode.
+</Note>
+
+Example:
+
+```bash
+hereby runtests-watch --tests=asyncAwait
+```
+
+This watches:
+- Test infrastructure (`built/local/run.js`)
+- Test cases (`tests/cases/**`)
+- Test libraries (`tests/lib/**`)
+
+## Debugging Tests
+
+### Inspector Mode
+
+Run tests with Node.js inspector:
+
+```bash
+hereby runtests --tests=<pattern> -i
+```
+
+Example:
+
+```bash
+hereby runtests --tests=2dArrays -i
+```
+
+Then open `chrome://inspect` in Chrome or attach from VS Code.
+
+### VS Code Debugging
+
+<Steps>
+  <Step title="Create Launch Configuration">
+    Copy `.vscode/launch.template.json` to `.vscode/launch.json`:
+    
+    ```bash
+    cp .vscode/launch.template.json .vscode/launch.json
+    ```
+  </Step>
+  
+  <Step title="Open Test File">
+    Open the `.ts` test file you want to debug in VS Code.
+  </Step>
+  
+  <Step title="Launch Debugger">
+    Press F5 or select **Run > Start Debugging**.
+    
+    The configuration runs Mocha with the currently open test file name.
+  </Step>
+  
+  <Step title="Set Breakpoints">
+    Set breakpoints in either:
+    - Test files (`tests/cases/**`)
+    - Compiler source (`src/**`)
+  </Step>
+</Steps>
+
+<Tip>
+The debugger uses source maps, so breakpoints in TypeScript source work directly.
+</Tip>
+
+## Test Baselines
+
+Most tests generate baseline files to detect output changes:
+
+### Baseline Files
+
+Compiler tests generate:
+- `.js` - Emitted JavaScript
+- `.d.ts` - Emitted declarations (in `.js` file)
+- `.errors.txt` - Compiler errors
+- `.types` - Type of each expression
+- `.symbols` - Symbol for each identifier
+- `.js.map` - Source maps (if requested)
+
+### Comparing Baselines
+
+After running tests, compare changes:
+
+```bash
+hereby diff
+```
+
+Or manually with git:
+
+```bash
+git diff --no-index tests/baselines/reference tests/baselines/local
+```
+
+<Tip>
+Set the `DIFF` environment variable to use your preferred diff tool:
+
+```bash
+export DIFF="code --diff"
+hereby diff
+```
+</Tip>
+
+### Accepting Baselines
+
+If the baseline changes are correct:
+
+```bash
+hereby baseline-accept
+```
+
+This copies `tests/baselines/local/*` to `tests/baselines/reference/`.
+
+<Warning>
+**Carefully review baseline changes before accepting!** Unexpected changes may indicate bugs.
+</Warning>
+
+## Writing New Tests
+
+### Adding a Compiler Test
+
+<Steps>
+  <Step title="Create Test File">
+    Add a `.ts` file in `tests/cases/compiler/`:
+    
+    ```typescript title="tests/cases/compiler/myNewFeature.ts"
+    // @strict: true
+    // @target: es2020
+    
+    // Test code that demonstrates the bug fix or new feature
+    function example() {
+        const x: string = "hello";
+        return x.toUpperCase();
+    }
+    ```
+  </Step>
+  
+  <Step title="Add Metadata">
+    Use comment tags to configure test behavior:
+    
+    ```typescript
+    // @strict: true              // Enable strict mode
+    // @target: es2020            // Set compilation target
+    // @module: commonjs          // Set module system
+    // @noEmit: true              // Don't emit output
+    // @noImplicitAny: true       // Specific compiler option
+    ```
+  </Step>
+  
+  <Step title="Run the Test">
+    ```bash
+    hereby runtests --tests=myNewFeature
+    ```
+  </Step>
+  
+  <Step title="Accept Baselines">
+    ```bash
+    hereby baseline-accept
+    ```
+  </Step>
+</Steps>
+
+### Multi-File Tests
+
+Use `@filename` tags to simulate multiple files:
+
+```typescript
+// @filename: types.ts
+export interface User {
+    name: string;
+    age: number;
+}
+
+// @filename: main.ts
+import { User } from "./types";
+
+const user: User = {
+    name: "Alice",
+    age: 30
+};
+```
+
+### Conformance Tests
+
+For spec compliance tests, add files to appropriate subdirectories:
+
+```
+tests/cases/conformance/
+├── types/               # Type system tests
+├── expressions/         # Expression tests
+├── statements/          # Statement tests
+├── es6/                 # ES6 feature tests
+├── es2015/              # ES2015 tests
+└── ...
+```
+
+<Note>
+Conformance test names must be unique across all test directories.
+</Note>
+
+## Test Infrastructure
+
+The test runner is built from `src/testRunner/`:
+
+```bash
+# Build test infrastructure
+hereby tests
+
+# Or use npm script
+npm run build:tests
+```
+
+Output: `built/local/run.js`
+
+### Test Harness
+
+The harness code in `src/harness/` provides utilities:
+- Compiler host implementations
+- Virtual file systems
+- Baseline management
+- Test configuration parsing
+
+## ESLint Rule Tests
+
+TypeScript includes custom ESLint rules with their own tests:
+
+```bash
+hereby run-eslint-rules-tests
+```
+
+Or:
+
+```bash
+npm run test:eslint-rules
+```
+
+These tests are separate from the main compiler test suite.
+
+## Continuous Integration
+
+### Sharded Testing
+
+CI systems can split tests across multiple machines:
+
+```bash
+# Run shard 1 of 4
+hereby runtests-parallel --shards=4 --shardId=1
+
+# Run shard 2 of 4
+hereby runtests-parallel --shards=4 --shardId=2
+```
+
+### Coverage Reports
+
+Generate test coverage with c8:
+
+```bash
+hereby runtests-parallel --coverage
+```
+
+Coverage reports are written to the `coverage/` directory.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Tests fail with 'Cannot find module'">
+    Build the test infrastructure:
+    
+    ```bash
+    hereby tests
+    ```
+  </Accordion>
+  
+  <Accordion title="Baseline comparison shows no differences but test fails">
+    Regenerate baselines:
+    
+    ```bash
+    hereby runtests --tests=<test> --dirty
+    hereby baseline-accept
+    ```
+  </Accordion>
+  
+  <Accordion title="Test times out">
+    Increase timeout:
+    
+    ```bash
+    hereby runtests --tests=<test> --timeout=120000
+    ```
+  </Accordion>
+  
+  <Accordion title="Watch mode doesn't detect changes">
+    Watch mode is experimental. Use manual reruns:
+    
+    ```bash
+    hereby runtests --tests=<pattern>
+    ```
+  </Accordion>
+  
+  <Accordion title="Debugger doesn't hit breakpoints">
+    Ensure you've built tests with source maps:
+    
+    ```bash
+    hereby tests
+    ```
+    
+    Source maps are enabled by default in `Herebyfile.mjs`.
+  </Accordion>
+</AccordionGroup>
+
+## Test Guidelines
+
+<Card title="Test Requirements" icon="clipboard-check">
+  Every PR should include:
+  
+  - **At least one test** that fails without your changes
+  - **Reasonable permutations** of the fix/feature
+  - **Updated baselines** if output changes
+  - **Test names** that clearly describe what they test
+</Card>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Debugging" icon="bug" href="/contributing/debugging">
+    Learn debugging techniques
+  </Card>
+  
+  <Card title="Building" icon="hammer" href="/contributing/building">
+    Build system reference
+  </Card>
+</CardGroup>

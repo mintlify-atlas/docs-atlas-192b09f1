@@ -1,0 +1,455 @@
+---
+title: tsc - TypeScript Compiler
+description: Complete reference for the TypeScript compiler command-line interface
+---
+
+The `tsc` command is the TypeScript compiler that compiles TypeScript files to JavaScript.
+
+## Installation
+
+```bash
+npm install -g typescript
+```
+
+## Basic Usage
+
+<CodeGroup>
+```bash Compile a single file
+tsc file.ts
+```
+
+```bash Compile with tsconfig.json
+tsc
+```
+
+```bash Compile specific project
+tsc --project tsconfig.production.json
+```
+
+```bash Watch mode
+tsc --watch
+```
+</CodeGroup>
+
+## Command-Line Options
+
+### Project Configuration
+
+<ParamField path="--project" type="string" default="tsconfig.json">
+  Compile the project given the path to its configuration file, or to a folder with a tsconfig.json.
+  
+  **Aliases:** `-p`
+  
+  ```bash
+  tsc --project tsconfig.build.json
+  tsc -p src/
+  ```
+</ParamField>
+
+<ParamField path="--init" type="boolean" default="false">
+  Initializes a TypeScript project and creates a tsconfig.json file.
+  
+  ```bash
+  tsc --init
+  ```
+</ParamField>
+
+<ParamField path="--showConfig" type="boolean" default="false">
+  Print the final configuration instead of building.
+  
+  ```bash
+  tsc --showConfig
+  ```
+</ParamField>
+
+### Build Options
+
+<ParamField path="--build" type="boolean" default="false">
+  Build one or more projects and their dependencies, if out of date.
+  
+  **Aliases:** `-b`
+  
+  ```bash
+  tsc --build
+  tsc -b src/ test/
+  ```
+</ParamField>
+
+<ParamField path="--watch" type="boolean" default="false">
+  Watch input files and trigger recompilation on changes.
+  
+  **Aliases:** `-w`
+  
+  ```bash
+  tsc --watch
+  tsc -w
+  ```
+</ParamField>
+
+<ParamField path="--incremental" type="boolean" default="false">
+  Save .tsbuildinfo files to allow for incremental compilation of projects.
+  
+  **Aliases:** `-i`
+  
+  ```bash
+  tsc --incremental
+  ```
+</ParamField>
+
+### Target & Module Options
+
+<ParamField path="--target" type="string" default="ES3">
+  Set the JavaScript language version for emitted JavaScript and include compatible library declarations.
+  
+  **Aliases:** `-t`
+  
+  **Valid values:** `ES3`, `ES5`, `ES6`/`ES2015`, `ES2016`, `ES2017`, `ES2018`, `ES2019`, `ES2020`, `ES2021`, `ES2022`, `ES2023`, `ES2024`, `ES2025`, `ESNext`
+  
+  ```bash
+  tsc --target ES2020
+  tsc -t ESNext
+  ```
+</ParamField>
+
+<ParamField path="--module" type="string" default="computed">
+  Specify what module code is generated.
+  
+  **Aliases:** `-m`
+  
+  **Valid values:** `CommonJS`, `AMD`, `UMD`, `System`, `ES6`/`ES2015`, `ES2020`, `ES2022`, `ESNext`, `Node16`, `Node18`, `Node20`, `NodeNext`, `Preserve`
+  
+  ```bash
+  tsc --module commonjs
+  tsc -m ESNext
+  ```
+</ParamField>
+
+<ParamField path="--lib" type="string[]">
+  Specify a set of bundled library declaration files that describe the target runtime environment.
+  
+  **Valid values:** `ES5`, `ES2015`, `ES2016`, `ES2017`, `ES2018`, `ES2019`, `ES2020`, `ES2021`, `ES2022`, `ES2023`, `ES2024`, `ES2025`, `ESNext`, `DOM`, `WebWorker`, `ScriptHost`
+  
+  ```bash
+  tsc --lib ES2020,DOM
+  ```
+</ParamField>
+
+### Emit Options
+
+<ParamField path="--outFile" type="string">
+  Specify a file that bundles all outputs into one JavaScript file. If declaration is true, also designates a file that bundles all .d.ts output.
+  
+  ```bash
+  tsc --outFile bundle.js
+  ```
+</ParamField>
+
+<ParamField path="--outDir" type="string">
+  Specify an output folder for all emitted files.
+  
+  ```bash
+  tsc --outDir dist/
+  ```
+</ParamField>
+
+<ParamField path="--declaration" type="boolean" default="false">
+  Generate .d.ts files from TypeScript and JavaScript files in your project.
+  
+  **Aliases:** `-d`
+  
+  ```bash
+  tsc --declaration
+  tsc -d
+  ```
+</ParamField>
+
+<ParamField path="--declarationMap" type="boolean" default="false">
+  Create sourcemaps for d.ts files.
+  
+  ```bash
+  tsc --declaration --declarationMap
+  ```
+</ParamField>
+
+<ParamField path="--sourceMap" type="boolean" default="false">
+  Create source map files for emitted JavaScript files.
+  
+  ```bash
+  tsc --sourceMap
+  ```
+</ParamField>
+
+<ParamField path="--removeComments" type="boolean" default="false">
+  Disable emitting comments.
+  
+  ```bash
+  tsc --removeComments
+  ```
+</ParamField>
+
+<ParamField path="--noEmit" type="boolean" default="false">
+  Disable emitting files from a compilation.
+  
+  ```bash
+  tsc --noEmit
+  ```
+</ParamField>
+
+<ParamField path="--emitDeclarationOnly" type="boolean" default="false">
+  Only output d.ts files and not JavaScript files.
+  
+  ```bash
+  tsc --emitDeclarationOnly
+  ```
+</ParamField>
+
+### Type Checking Options
+
+<ParamField path="--strict" type="boolean" default="true">
+  Enable all strict type-checking options.
+  
+  ```bash
+  tsc --strict
+  ```
+</ParamField>
+
+<ParamField path="--noImplicitAny" type="boolean" default="true if strict">
+  Enable error reporting for expressions and declarations with an implied 'any' type.
+  
+  ```bash
+  tsc --noImplicitAny
+  ```
+</ParamField>
+
+<ParamField path="--strictNullChecks" type="boolean" default="true if strict">
+  When type checking, take into account null and undefined.
+  
+  ```bash
+  tsc --strictNullChecks
+  ```
+</ParamField>
+
+<ParamField path="--strictFunctionTypes" type="boolean" default="true if strict">
+  When assigning functions, check to ensure parameters and the return values are subtype-compatible.
+  
+  ```bash
+  tsc --strictFunctionTypes
+  ```
+</ParamField>
+
+### Diagnostic Options
+
+<ParamField path="--pretty" type="boolean" default="true">
+  Enable color and formatting in TypeScript's output to make compiler errors easier to read.
+  
+  ```bash
+  tsc --pretty
+  ```
+</ParamField>
+
+<ParamField path="--diagnostics" type="boolean" default="false">
+  Output compiler performance information after building.
+  
+  ```bash
+  tsc --diagnostics
+  ```
+</ParamField>
+
+<ParamField path="--extendedDiagnostics" type="boolean" default="false">
+  Output more detailed compiler performance information after building.
+  
+  ```bash
+  tsc --extendedDiagnostics
+  ```
+</ParamField>
+
+<ParamField path="--listFiles" type="boolean" default="false">
+  Print all of the files read during the compilation.
+  
+  ```bash
+  tsc --listFiles
+  ```
+</ParamField>
+
+<ParamField path="--explainFiles" type="boolean" default="false">
+  Print files read during the compilation including why it was included.
+  
+  ```bash
+  tsc --explainFiles
+  ```
+</ParamField>
+
+<ParamField path="--traceResolution" type="boolean" default="false">
+  Log paths used during the moduleResolution process.
+  
+  ```bash
+  tsc --traceResolution
+  ```
+</ParamField>
+
+### Help & Version
+
+<ParamField path="--help" type="boolean" default="false">
+  Print this help message.
+  
+  **Aliases:** `-h`, `-?`
+  
+  ```bash
+  tsc --help
+  tsc -h
+  ```
+</ParamField>
+
+<ParamField path="--version" type="boolean" default="false">
+  Print the compiler's version.
+  
+  **Aliases:** `-v`
+  
+  ```bash
+  tsc --version
+  tsc -v
+  ```
+</ParamField>
+
+<ParamField path="--all" type="boolean" default="false">
+  Show all compiler options.
+  
+  ```bash
+  tsc --all
+  ```
+</ParamField>
+
+## Real-World Examples
+
+### Basic Compilation
+
+Compile a TypeScript file to JavaScript:
+
+```bash
+tsc index.ts
+```
+
+**Output:**
+```
+index.js
+```
+
+### Development Build
+
+Compile with source maps and watch mode for development:
+
+```bash
+tsc --sourceMap --watch --pretty
+```
+
+**Output:**
+```
+[12:00:00 AM] Starting compilation in watch mode...
+[12:00:03 AM] Found 0 errors. Watching for file changes.
+```
+
+### Production Build
+
+Compile for production with optimizations:
+
+```bash
+tsc --removeComments --declaration --sourceMap --outDir dist/
+```
+
+**Output:**
+```
+dist/
+  ├── index.js
+  ├── index.js.map
+  └── index.d.ts
+```
+
+### Type Checking Only
+
+Check types without emitting files:
+
+```bash
+tsc --noEmit
+```
+
+**Output:**
+```
+src/utils.ts:15:7 - error TS2322: Type 'string' is not assignable to type 'number'.
+
+15   let x: number = "hello";
+         ^
+
+Found 1 error.
+```
+
+### Project References
+
+Build a project with references:
+
+```bash
+tsc --build --verbose
+```
+
+**Output:**
+```
+[12:00:00 AM] Projects in this build: 
+    * packages/core/tsconfig.json
+    * packages/utils/tsconfig.json
+    * tsconfig.json
+
+[12:00:00 AM] Project 'packages/core/tsconfig.json' is up to date
+[12:00:01 AM] Project 'packages/utils/tsconfig.json' is up to date
+```
+
+## Exit Codes
+
+<ResponseField name="0" type="success">
+  Compilation succeeded with no errors.
+</ResponseField>
+
+<ResponseField name="1" type="error">
+  Compilation failed with type errors.
+</ResponseField>
+
+<ResponseField name="2" type="error">
+  Invalid command-line arguments.
+</ResponseField>
+
+## Performance Tips
+
+<Tip>
+  Use `--incremental` to speed up subsequent builds by saving compilation information.
+</Tip>
+
+<Tip>
+  Use `--skipLibCheck` to skip type checking of declaration files and speed up compilation.
+</Tip>
+
+<Tip>
+  Use project references with `--build` for large monorepo projects to enable incremental builds.
+</Tip>
+
+## Common Errors
+
+<Warning>
+  **error TS5023:** Unknown compiler option 'xxx'
+  
+  Check the option name for typos. Use `tsc --help` to see all available options.
+</Warning>
+
+<Warning>
+  **error TS5057:** Cannot find a tsconfig.json file at the specified directory
+  
+  Ensure tsconfig.json exists in the specified directory or use `tsc --init` to create one.
+</Warning>
+
+## Source Code Reference
+
+The TypeScript compiler implementation:
+- Main entry point: [`src/tsc/tsc.ts:24`](https://github.com/microsoft/TypeScript/blob/main/src/tsc/tsc.ts#L24)
+- Command-line parser: [`src/compiler/commandLineParser.ts`](https://github.com/microsoft/TypeScript/blob/main/src/compiler/commandLineParser.ts)
+- Build mode: [`src/compiler/builder.ts`](https://github.com/microsoft/TypeScript/blob/main/src/compiler/builder.ts)
+
+<Note>
+  The `tsc` binary (`bin/tsc`) is a wrapper that loads the compiled compiler from `lib/tsc.js`.
+</Note>

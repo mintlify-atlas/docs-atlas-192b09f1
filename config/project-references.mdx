@@ -1,0 +1,683 @@
+---
+title: 'Project References'
+description: 'Structure large TypeScript projects with project references'
+---
+
+## Overview
+
+Project references are a feature that allows you to structure your TypeScript programs into smaller pieces. This enables:
+
+- Faster builds through incremental compilation
+- Better code organization and separation of concerns
+- Enforced logical boundaries between components
+- Improved IDE performance
+
+<Info>
+Project references are essential for large TypeScript projects and monorepos.
+</Info>
+
+## How Project References Work
+
+Project references allow TypeScript to:
+
+1. Build projects independently and incrementally
+2. Cache build outputs in `.tsbuildinfo` files
+3. Enforce dependencies between projects
+4. Navigate and edit across multiple projects efficiently
+
+## Basic Setup
+
+### 1. Enable Composite Mode
+
+For a project to be referenced, it must have `composite: true` in its `tsconfig.json`:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*"]
+}
+```
+
+<Note>
+When `composite` is enabled, TypeScript automatically enables `declaration` if not explicitly set.
+</Note>
+
+### 2. Add References
+
+In the consuming project, add references to the dependencies:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "references": [
+    { "path": "../shared" },
+    { "path": "../utils" }
+  ]
+}
+```
+
+### 3. Build with References
+
+Use the `--build` flag to build projects with references:
+
+```bash
+tsc --build
+```
+
+This command:
+- Finds all referenced projects
+- Detects if they're up-to-date
+- Builds out-of-date projects in the correct order
+- Builds the current project
+
+## Real-World Example: TypeScript Compiler
+
+The TypeScript compiler itself uses project references extensively. Here's how it's structured:
+
+### Root Configuration
+
+From `src/tsconfig.json`:
+
+```json src/tsconfig.json
+{
+  "files": [],
+  "include": [],
+  "references": [
+    { "path": "./compiler" },
+    { "path": "./deprecatedCompat" },
+    { "path": "./harness" },
+    { "path": "./jsTyping" },
+    { "path": "./server" },
+    { "path": "./services" },
+    { "path": "./testRunner" },
+    { "path": "./tsc" },
+    { "path": "./tsserver" },
+    { "path": "./typescript" },
+    { "path": "./typingsInstaller" },
+    { "path": "./typingsInstallerCore" },
+    { "path": "./watchGuard" }
+  ]
+}
+```
+
+<Tip>
+Notice that the root `tsconfig.json` has empty `files` and `include` arrays. This is a common pattern for solution-style projects that only coordinate references.
+</Tip>
+
+### Base Configuration
+
+From `src/tsconfig-base.json`:
+
+```json src/tsconfig-base.json
+{
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../built/local",
+    "pretty": true,
+    "lib": ["es2020"],
+    "target": "es2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "isolatedDeclarations": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "alwaysStrict": true,
+    "preserveConstEnums": true,
+    "newLine": "lf",
+    "types": []
+  }
+}
+```
+
+### Compiler Project
+
+From `src/compiler/tsconfig.json`:
+
+```json src/compiler/tsconfig.json
+{
+  "extends": "../tsconfig-base",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "references": [],
+  "include": ["**/*"]
+}
+```
+
+### Services Project (with Dependencies)
+
+From `src/services/tsconfig.json`:
+
+```json src/services/tsconfig.json
+{
+  "extends": "../tsconfig-base",
+  "compilerOptions": {},
+  "references": [
+    { "path": "../compiler" },
+    { "path": "../jsTyping" }
+  ],
+  "include": ["**/*"]
+}
+```
+
+<Note>
+The `services` project depends on `compiler` and `jsTyping`, so it references them. TypeScript ensures they're built first.
+</Note>
+
+## Composite Project Requirements
+
+When `composite: true` is enabled, TypeScript enforces several requirements:
+
+### 1. Must Specify Files
+
+The project must specify which files are included using `files`, `include`, or both.
+
+```json
+{
+  "compilerOptions": {
+    "composite": true
+  },
+  "include": ["src/**/*"]
+}
+```
+
+### 2. Must Enable Declaration Files
+
+`declaration` is automatically set to `true` (unless explicitly disabled, which is not recommended).
+
+### 3. RootDir Constraints
+
+All files must be within the `rootDir` (if specified) or within the directory containing `tsconfig.json`.
+
+## Build Mode Commands
+
+Project references work with TypeScript's build mode:
+
+### Basic Build
+
+```bash
+tsc --build
+# or
+tsc -b
+```
+
+Builds the project and all its dependencies.
+
+### Clean Build
+
+```bash
+tsc --build --clean
+# or
+tsc -b --clean
+```
+
+Deletes output files for the project and all dependencies.
+
+### Force Rebuild
+
+```bash
+tsc --build --force
+# or
+tsc -b --force
+```
+
+Forces a rebuild of all projects, regardless of whether they appear up-to-date.
+
+### Verbose Output
+
+```bash
+tsc --build --verbose
+# or
+tsc -b --verbose
+```
+
+Shows detailed information about what's being built.
+
+### Dry Run
+
+```bash
+tsc --build --dry
+# or
+tsc -b --dry
+```
+
+Shows what would be built without actually building.
+
+### Watch Mode
+
+```bash
+tsc --build --watch
+# or
+tsc -b -w
+```
+
+Watches for changes and rebuilds incrementally.
+
+## Monorepo Structure
+
+Project references are ideal for monorepo setups:
+
+```plaintext
+monorepo/
+├── tsconfig.json
+├── packages/
+│   ├── shared/
+│   │   ├── tsconfig.json
+│   │   └── src/
+│   ├── client/
+│   │   ├── tsconfig.json
+│   │   └── src/
+│   └── server/
+│       ├── tsconfig.json
+│       └── src/
+└── apps/
+    ├── web/
+    │   ├── tsconfig.json
+    │   └── src/
+    └── api/
+        ├── tsconfig.json
+        └── src/
+```
+
+### Root Configuration
+
+```json tsconfig.json
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/client" },
+    { "path": "./packages/server" },
+    { "path": "./apps/web" },
+    { "path": "./apps/api" }
+  ]
+}
+```
+
+### Shared Package
+
+```json packages/shared/tsconfig.json
+{
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"]
+}
+```
+
+### Client Package (depends on shared)
+
+```json packages/client/tsconfig.json
+{
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "references": [
+    { "path": "../shared" }
+  ],
+  "include": ["src/**/*"]
+}
+```
+
+### Web App (depends on client and shared)
+
+```json apps/web/tsconfig.json
+{
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "jsx": "react-jsx",
+    "lib": ["es2020", "dom"]
+  },
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/client" }
+  ],
+  "include": ["src/**/*"]
+}
+```
+
+## Import Behavior
+
+When using project references, TypeScript uses the `.d.ts` files from referenced projects instead of the source `.ts` files:
+
+```typescript
+// In packages/client/src/api.ts
+import { Config } from '@monorepo/shared';
+
+// TypeScript uses:
+// - packages/shared/dist/index.d.ts (not packages/shared/src/index.ts)
+```
+
+### Prepend Option
+
+For `outFile` builds, you can use the `prepend` option:
+
+```json
+{
+  "references": [
+    { "path": "../shared", "prepend": true }
+  ]
+}
+```
+
+This includes the referenced project's output before the current project's output in the final bundle.
+
+## Build Information Files
+
+With project references, TypeScript generates `.tsbuildinfo` files:
+
+```json
+{
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  }
+}
+```
+
+These files contain:
+- Hashes of source files
+- Compiler options used
+- Output file locations
+- Dependency information
+
+<Warning>
+Don't delete `.tsbuildinfo` files manually. Use `tsc --build --clean` to clean projects properly.
+</Warning>
+
+## Performance Benefits
+
+### Before Project References
+
+```bash
+# Full rebuild every time
+tsc
+# Time: 45 seconds for large project
+```
+
+### With Project References
+
+```bash
+# First build
+tsc --build
+# Time: 45 seconds
+
+# Subsequent builds (only changed projects)
+tsc --build
+# Time: 2 seconds
+```
+
+### Incremental Compilation
+
+Project references enable true incremental compilation:
+
+1. **File-level tracking**: Only rebuild changed files
+2. **Project-level tracking**: Only rebuild changed projects
+3. **Dependency tracking**: Only rebuild dependent projects when needed
+
+## Editor Integration
+
+Modern editors leverage project references for better performance:
+
+### VS Code
+
+- Automatically detects project references
+- Provides faster IntelliSense
+- Enables cross-project navigation
+- Shows build status for each project
+
+### Configuration for VS Code
+
+```json .vscode/settings.json
+{
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.tsc.autoDetect": "on"
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+<Card title="Use composite mode" icon="layer-group">
+Always set `"composite": true` for projects that will be referenced.
+</Card>
+
+<Card title="Enable declarations" icon="file-code">
+Ensure `declaration` is enabled (it's automatic with composite).
+</Card>
+
+<Card title="Organize logically" icon="sitemap">
+Structure projects by logical boundaries (features, layers, etc.).
+</Card>
+
+<Card title="Minimize references" icon="minimize">
+Only reference what you actually depend on to keep builds fast.
+</Card>
+</CardGroup>
+
+### Recommended Options
+
+```json
+{
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  }
+}
+```
+
+## Common Patterns
+
+### Library + App
+
+```plaintext
+project/
+├── tsconfig.json (root)
+├── lib/
+│   ├── tsconfig.json
+│   └── src/
+└── app/
+    ├── tsconfig.json
+    └── src/
+```
+
+### Multi-tier Architecture
+
+```plaintext
+project/
+├── tsconfig.json
+├── packages/
+│   ├── domain/         # No dependencies
+│   ├── data/           # Depends on: domain
+│   ├── services/       # Depends on: domain, data
+│   └── ui/             # Depends on: domain, services
+```
+
+### Test Separation
+
+```plaintext
+project/
+├── tsconfig.json
+├── src/
+│   └── tsconfig.json
+└── tests/
+    └── tsconfig.json   # References: ../src
+```
+
+## Troubleshooting
+
+### Build Order Issues
+
+<Accordion title="Error: Project references may not form a circular chain">
+Check your references for circular dependencies:
+
+```bash
+# Find circular references
+tsc --build --verbose
+```
+
+Solution: Restructure to eliminate cycles or extract shared code.
+</Accordion>
+
+<Accordion title="Error: Cannot find module or its corresponding type declarations">
+Ensure:
+1. Referenced project has `composite: true`
+2. Referenced project has been built (`tsc --build`)
+3. Path in reference is correct
+</Accordion>
+
+<Accordion title="Slow incremental builds">
+1. Check `.tsbuildinfo` files exist
+2. Verify `incremental: true` is set
+3. Ensure `outDir` is consistent
+4. Try `tsc --build --force` for a fresh rebuild
+</Accordion>
+
+### Declaration File Issues
+
+```bash
+# Generate detailed diagnostics
+tsc --build --verbose --listEmittedFiles
+```
+
+Common issues:
+- Missing `declaration: true`
+- Files outside `rootDir`
+- Incorrect `outDir` configuration
+
+## Advanced Configuration
+
+### Disable Source File Preference
+
+```json
+{
+  "compilerOptions": {
+    "disableSourceOfProjectReferenceRedirect": true
+  }
+}
+```
+
+This forces TypeScript to always use `.d.ts` files from references, even when source files are available.
+
+### Disable Solution Searching
+
+```json
+{
+  "compilerOptions": {
+    "disableSolutionSearching": true
+  }
+}
+```
+
+Prevents TypeScript from searching for a containing solution tsconfig.json.
+
+### Disable Referenced Project Load
+
+```json
+{
+  "compilerOptions": {
+    "disableReferencedProjectLoad": true
+  }
+}
+```
+
+Reduces the number of projects loaded automatically, improving editor performance for very large monorepos.
+
+Source: `src/compiler/commandLineParser.ts:1487-1509`
+
+## Migration Guide
+
+### Converting to Project References
+
+1. **Identify natural boundaries** in your codebase
+2. **Create separate tsconfig.json** for each project
+3. **Enable composite mode** in each tsconfig.json
+4. **Add references** between dependent projects
+5. **Test the build** with `tsc --build`
+6. **Update package.json** scripts
+
+### Example Migration
+
+Before:
+```json
+{
+  "compilerOptions": {
+    "outDir": "dist"
+  },
+  "include": ["src/**/*", "lib/**/*"]
+}
+```
+
+After:
+```json tsconfig.json
+{
+  "files": [],
+  "references": [
+    { "path": "./lib" },
+    { "path": "./src" }
+  ]
+}
+```
+
+```json lib/tsconfig.json
+{
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "../dist/lib"
+  },
+  "include": ["**/*"]
+}
+```
+
+```json src/tsconfig.json
+{
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "../dist/src"
+  },
+  "references": [
+    { "path": "../lib" }
+  ],
+  "include": ["**/*"]
+}
+```
+
+## Related Documentation
+
+<CardGroup cols={2}>
+<Card title="tsconfig.json" icon="file" href="/config/tsconfig-json">
+Learn about the complete tsconfig.json structure
+</Card>
+
+<Card title="Compiler Options Reference" icon="list" href="/config/compiler-options-reference">
+Complete reference of all compiler options
+</Card>
+</CardGroup>

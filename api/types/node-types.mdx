@@ -1,0 +1,243 @@
+---
+title: Node Types
+description: TypeScript compiler node types and the AST hierarchy
+---
+
+The TypeScript compiler represents source code as an Abstract Syntax Tree (AST) composed of nodes. All nodes implement the base `Node` interface and are classified by their `SyntaxKind`.
+
+## Base Node Interface
+
+All AST nodes extend the `Node` interface:
+
+```typescript
+interface Node extends ReadonlyTextRange {
+  readonly kind: SyntaxKind;
+  readonly flags: NodeFlags;
+  readonly parent: Node;
+}
+```
+
+### Key Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `kind` | `SyntaxKind` | The syntax kind identifying the node type |
+| `flags` | `NodeFlags` | Bitwise flags for node properties |
+| `parent` | `Node` | Parent node in the AST |
+| `pos` | `number` | Start position in source text |
+| `end` | `number` | End position in source text |
+
+## Core Node Types
+
+### Declaration Nodes
+
+```typescript
+interface Declaration extends Node {
+  _declarationBrand: any;
+}
+
+interface NamedDeclaration extends Declaration {
+  readonly name?: DeclarationName;
+}
+```
+
+Declaration nodes represent entities that introduce symbols into scope:
+
+- `VariableDeclaration` - Variable declarations
+- `FunctionDeclaration` - Function declarations
+- `ClassDeclaration` - Class declarations
+- `InterfaceDeclaration` - Interface declarations
+- `TypeAliasDeclaration` - Type alias declarations
+- `EnumDeclaration` - Enum declarations
+- `ParameterDeclaration` - Parameter declarations
+
+### Expression Nodes
+
+Expressions are nodes that can be evaluated to produce a value:
+
+```typescript
+type Expression = 
+  | Identifier
+  | BinaryExpression
+  | CallExpression
+  | PropertyAccessExpression
+  | ArrayLiteralExpression
+  | ObjectLiteralExpression
+  // ... and many more
+```
+
+Common expression types:
+
+| Type | Description |
+|------|-------------|
+| `Identifier` | Variable or property name |
+| `BinaryExpression` | Binary operations (e.g., `a + b`) |
+| `CallExpression` | Function calls |
+| `PropertyAccessExpression` | Property access (e.g., `obj.prop`) |
+| `ElementAccessExpression` | Bracket notation (e.g., `arr[0]`) |
+| `ArrowFunction` | Arrow function expressions |
+| `FunctionExpression` | Function expressions |
+
+### Statement Nodes
+
+Statements are executable units of code:
+
+```typescript
+type Statement =
+  | VariableStatement
+  | ExpressionStatement
+  | IfStatement
+  | ForStatement
+  | WhileStatement
+  | ReturnStatement
+  | ThrowStatement
+  // ... and more
+```
+
+### Type Nodes
+
+Type nodes represent TypeScript type annotations:
+
+```typescript
+type TypeNode =
+  | TypeReference
+  | FunctionType
+  | UnionType
+  | IntersectionType
+  | ArrayType
+  | TupleType
+  // ... and more
+```
+
+## Container Nodes
+
+Some nodes act as containers for other declarations:
+
+```typescript
+interface LocalsContainer extends Node {
+  _localsContainerBrand: any;
+}
+
+interface FlowContainer extends Node {
+  _flowContainerBrand: any;
+}
+```
+
+### LocalsContainer
+
+Nodes that can contain local symbols:
+- `SourceFile`
+- `FunctionDeclaration`
+- `ModuleDeclaration`
+- `Block`
+- `ForStatement`
+- `CatchClause`
+
+### FlowContainer
+
+Nodes with control flow analysis:
+- Functions and methods
+- Statements (if, while, for, etc.)
+- Expressions with side effects
+
+## Common Node Patterns
+
+### Signature Declarations
+
+```typescript
+interface SignatureDeclarationBase extends NamedDeclaration {
+  readonly kind: SignatureDeclaration["kind"];
+  readonly name?: PropertyName;
+  readonly typeParameters?: NodeArray<TypeParameterDeclaration>;
+  readonly parameters: NodeArray<ParameterDeclaration>;
+  readonly type?: TypeNode;
+}
+```
+
+Used by:
+- `FunctionDeclaration`
+- `MethodDeclaration`
+- `ConstructorDeclaration`
+- `CallSignatureDeclaration`
+- `ConstructSignatureDeclaration`
+
+### Variable Declarations
+
+```typescript
+interface VariableDeclaration extends NamedDeclaration {
+  readonly kind: SyntaxKind.VariableDeclaration;
+  readonly name: BindingName;
+  readonly exclamationToken?: ExclamationToken;
+  readonly type?: TypeNode;
+  readonly initializer?: Expression;
+}
+```
+
+### Parameter Declarations
+
+```typescript
+interface ParameterDeclaration extends NamedDeclaration {
+  readonly kind: SyntaxKind.Parameter;
+  readonly modifiers?: NodeArray<ModifierLike>;
+  readonly dotDotDotToken?: DotDotDotToken;
+  readonly name: BindingName;
+  readonly questionToken?: QuestionToken;
+  readonly type?: TypeNode;
+  readonly initializer?: Expression;
+}
+```
+
+## Working with Nodes
+
+### Type Guards
+
+Use type guards to narrow node types:
+
+```typescript
+import ts from 'typescript';
+
+if (ts.isVariableDeclaration(node)) {
+  // node is VariableDeclaration
+  console.log(node.name.getText());
+}
+
+if (ts.isFunctionDeclaration(node)) {
+  // node is FunctionDeclaration
+  console.log(node.name?.getText());
+}
+```
+
+### Traversing the AST
+
+```typescript
+function visit(node: ts.Node) {
+  console.log(ts.SyntaxKind[node.kind]);
+  ts.forEachChild(node, visit);
+}
+```
+
+## Node Relationships
+
+### Parent-Child
+
+Every node (except the root) has a parent:
+
+```typescript
+const parent = node.parent;
+const children: ts.Node[] = [];
+ts.forEachChild(node, child => children.push(child));
+```
+
+### Source File
+
+Get the source file for any node:
+
+```typescript
+const sourceFile = node.getSourceFile();
+```
+
+## See Also
+
+- [SyntaxKind](/api/types/syntax-kind) - Complete list of syntax kinds
+- [TypeFlags](/api/types/type-flags) - Type system flags
+- [SymbolFlags](/api/types/symbol-flags) - Symbol classification flags

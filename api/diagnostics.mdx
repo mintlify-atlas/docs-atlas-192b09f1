@@ -1,0 +1,731 @@
+---
+title: Diagnostics API
+description: TypeScript error reporting and diagnostics API reference
+---
+
+The Diagnostics API provides access to syntax errors, type errors, and code suggestions. This powers error highlighting and the Problems panel in editors.
+
+## Overview
+
+TypeScript provides three types of diagnostics:
+
+<CardGroup cols={3}>
+  <Card title="Syntactic" icon="brackets-curly">
+    Fast syntax-only errors
+  </Card>
+  <Card title="Semantic" icon="brain">
+    Type system errors
+  </Card>
+  <Card title="Suggestions" icon="lightbulb">
+    Code improvement hints
+  </Card>
+</CardGroup>
+
+## getSyntacticDiagnostics
+
+Returns syntax errors in a file without type checking.
+
+### Signature
+
+```typescript
+function getSyntacticDiagnostics(
+  fileName: string
+): DiagnosticWithLocation[];
+```
+
+<ParamField path="fileName" type="string" required>
+  Path to the source file to check.
+</ParamField>
+
+### Return Value
+
+```typescript
+interface DiagnosticWithLocation extends Diagnostic {
+  file: SourceFile;              // Source file containing the error
+  start: number;                 // Character offset of error start
+  length: number;                // Length of the error span
+}
+
+interface Diagnostic {
+  category: DiagnosticCategory;  // Error, Warning, Suggestion, Message
+  code: number;                  // Error code (e.g., 1005)
+  messageText: string | DiagnosticMessageChain;
+  source?: string;               // Source of diagnostic (e.g., "ts")
+  reportsUnnecessary?: boolean;  // Code is unnecessary
+  reportsDeprecated?: boolean;   // Code is deprecated
+}
+```
+
+### Characteristics
+
+<CardGroup cols={2}>
+  <Card title="Fast" icon="bolt">
+    No type checking required
+  </Card>
+  <Card title="Local" icon="file">
+    Only analyzes single file
+  </Card>
+  <Card title="Always Available" icon="check">
+    Works even with type errors
+  </Card>
+  <Card title="Subset" icon="list">
+    Some errors need semantics
+  </Card>
+</CardGroup>
+
+## Example: Syntactic Diagnostics
+
+```typescript Syntax Errors
+import * as ts from 'typescript';
+
+const code = `
+function add(a, b {
+  return a + b
+}
+
+const x = 42;
+const y = "hello"
+`;
+
+const sourceFile = ts.createSourceFile(
+  'test.ts',
+  code,
+  ts.ScriptTarget.Latest
+);
+
+const diagnostics = service.getSyntacticDiagnostics('test.ts');
+
+diagnostics.forEach(diagnostic => {
+  const { line, character } = diagnostic.file.getLineAndCharacterOfPosition(
+    diagnostic.start
+  );
+  
+  const message = typeof diagnostic.messageText === 'string'
+    ? diagnostic.messageText
+    : diagnostic.messageText.messageText;
+  
+  console.log(
+    `${diagnostic.file.fileName}:${line + 1}:${character + 1}`,
+    `- ${message} (${diagnostic.code})`
+  );
+});
+```
+
+<Expandable title="Output">
+```
+test.ts:2:19 - ')' expected. (1005)
+test.ts:3:15 - ';' expected. (1005)
+```
+</Expandable>
+
+## getSemanticDiagnostics
+
+Returns type system errors and warnings for a file.
+
+### Signature
+
+```typescript
+function getSemanticDiagnostics(
+  fileName: string
+): Diagnostic[];
+```
+
+<ParamField path="fileName" type="string" required>
+  Path to the source file to check.
+</ParamField>
+
+### Return Value
+
+Returns `Diagnostic[]` which may not have location information for global errors.
+
+<Warning>
+  The first call to `getSemanticDiagnostics` may be slow as it initializes the type system. Subsequent calls are faster.
+</Warning>
+
+### Characteristics
+
+<CardGroup cols={2}>
+  <Card title="Slower" icon="clock">
+    Requires type checking
+  </Card>
+  <Card title="Global" icon="globe">
+    Analyzes across files
+  </Card>
+  <Card title="Complete" icon="check-double">
+    All type errors
+  </Card>
+  <Card title="Incremental" icon="forward">
+    Caches results
+  </Card>
+</CardGroup>
+
+## Example: Semantic Diagnostics
+
+```typescript Type Errors
+const code = `
+function greet(name: string): string {
+  return "Hello, " + name;
+}
+
+// Type error: number is not assignable to string
+greet(42);
+
+interface User {
+  name: string;
+  age: number;
+}
+
+const user: User = {
+  name: "Alice"
+  // Missing property 'age'
+};
+
+// Type error: Property 'foo' does not exist
+user.foo;
+`;
+
+const diagnostics = service.getSemanticDiagnostics('app.ts');
+
+diagnostics.forEach(diagnostic => {
+  if (diagnostic.file) {
+    const { line, character } = diagnostic.file.getLineAndCharacterOfPosition(
+      diagnostic.start!
+    );
+    
+    console.log(
+      `${diagnostic.file.fileName}:${line + 1}:${character + 1}`
+    );
+  }
+  
+  const message = ts.flattenDiagnosticMessageText(
+    diagnostic.messageText,
+    '\n'
+  );
+  
+  console.log(`  ${message}`);
+  console.log(`  Error code: ${diagnostic.code}\n`);
+});
+```
+
+<Expandable title="Output">
+```
+app.ts:7:7
+  Argument of type 'number' is not assignable to parameter of type 'string'.
+  Error code: 2345
+
+app.ts:14:7
+  Property 'age' is missing in type '{ name: string; }' but required in type 'User'.
+  Error code: 2741
+
+app.ts:19:6
+  Property 'foo' does not exist on type 'User'.
+  Error code: 2339
+```
+</Expandable>
+
+## getSuggestionDiagnostics
+
+Returns suggestion diagnostics that proactively recommend improvements.
+
+### Signature
+
+```typescript
+function getSuggestionDiagnostics(
+  fileName: string
+): DiagnosticWithLocation[];
+```
+
+### Suggestion Types
+
+<AccordionGroup>
+  <Accordion title="Unnecessary Code" icon="trash">
+    Code that can be removed:
+    - Unused variables
+    - Unused imports
+    - Unreachable code
+    
+    ```typescript
+    import { unused } from './module'; // Suggestion: Remove unused import
+    
+    function test() {
+      const x = 1; // Suggestion: 'x' is declared but never used
+      return;
+      console.log('unreachable'); // Suggestion: Unreachable code
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Async/Await Opportunities" icon="hourglass">
+    Functions that could be async:
+    
+    ```typescript
+    // Suggestion: This may be converted to an async function
+    function fetchData() {
+      return fetch('/api').then(r => r.json());
+    }
+    
+    // Better:
+    async function fetchData() {
+      const response = await fetch('/api');
+      return response.json();
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Deprecated APIs" icon="triangle-exclamation">
+    Usage of deprecated APIs:
+    
+    ```typescript
+    /** @deprecated Use newFunction instead */
+    function oldFunction() { }
+    
+    // Suggestion: 'oldFunction' is deprecated
+    oldFunction();
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Example: Suggestions
+
+```typescript Suggestion Diagnostics
+const code = `
+import { unused, used } from './utils';
+
+function process() {
+  console.log(used);
+}
+
+function convertToAsync() {
+  return Promise.resolve(42).then(x => x * 2);
+}
+
+/** @deprecated Use newApi instead */
+function oldApi() { }
+
+oldApi();
+`;
+
+const suggestions = service.getSuggestionDiagnostics('app.ts');
+
+suggestions.forEach(suggestion => {
+  const { line, character } = suggestion.file.getLineAndCharacterOfPosition(
+    suggestion.start
+  );
+  
+  console.log(`Suggestion at ${line + 1}:${character + 1}`);
+  console.log(`  ${suggestion.messageText}`);
+  
+  if (suggestion.reportsUnnecessary) {
+    console.log('  (Unnecessary code)');
+  }
+  
+  if (suggestion.reportsDeprecated) {
+    console.log('  (Deprecated)');
+  }
+});
+```
+
+## getCompilerOptionsDiagnostics
+
+Returns diagnostics related to compiler options and configuration.
+
+### Signature
+
+```typescript
+function getCompilerOptionsDiagnostics(): Diagnostic[];
+```
+
+### Example: Configuration Errors
+
+```typescript Config Diagnostics
+// tsconfig.json has invalid options
+const diagnostics = service.getCompilerOptionsDiagnostics();
+
+diagnostics.forEach(diagnostic => {
+  console.log(diagnostic.messageText);
+  console.log(`Error code: ${diagnostic.code}`);
+});
+```
+
+<Expandable title="Example Errors">
+```
+Option 'target' must be one of: 'ES3', 'ES5', 'ES6', 'ES2015', ...
+Error code: 6046
+
+Option 'module' can only be 'CommonJS', 'AMD', 'UMD', 'System', 'ES6', ...
+Error code: 5024
+
+File '/path/to/file.ts' not found.
+Error code: 6053
+```
+</Expandable>
+
+## Diagnostic Categories
+
+```typescript
+enum DiagnosticCategory {
+  Warning = 0,
+  Error = 1,
+  Suggestion = 2,
+  Message = 3,
+}
+```
+
+### Filtering by Category
+
+```typescript Filter Diagnostics
+const allDiagnostics = [
+  ...service.getSyntacticDiagnostics('app.ts'),
+  ...service.getSemanticDiagnostics('app.ts')
+];
+
+// Get only errors
+const errors = allDiagnostics.filter(
+  d => d.category === ts.DiagnosticCategory.Error
+);
+
+// Get only warnings
+const warnings = allDiagnostics.filter(
+  d => d.category === ts.DiagnosticCategory.Warning
+);
+
+console.log(`Found ${errors.length} errors and ${warnings.length} warnings`);
+```
+
+## Formatting Diagnostics
+
+```typescript Format for Display
+import * as ts from 'typescript';
+
+function formatDiagnostic(diagnostic: ts.Diagnostic): string {
+  if (diagnostic.file) {
+    const { line, character } = diagnostic.file.getLineAndCharacterOfPosition(
+      diagnostic.start!
+    );
+    
+    const message = ts.flattenDiagnosticMessageText(
+      diagnostic.messageText,
+      '\n',
+      0
+    );
+    
+    const category = ts.DiagnosticCategory[diagnostic.category].toLowerCase();
+    
+    return (
+      `${diagnostic.file.fileName}(${line + 1},${character + 1}): ` +
+      `${category} TS${diagnostic.code}: ${message}`
+    );
+  } else {
+    return ts.flattenDiagnosticMessageText(
+      diagnostic.messageText,
+      '\n'
+    );
+  }
+}
+
+const diagnostics = service.getSemanticDiagnostics('app.ts');
+diagnostics.forEach(d => console.log(formatDiagnostic(d)));
+```
+
+<Expandable title="Formatted Output">
+```
+app.ts(10,15): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+app.ts(15,8): error TS2741: Property 'age' is missing in type '{ name: string; }' but required in type 'User'.
+```
+</Expandable>
+
+## Diagnostic Message Chains
+
+Some diagnostics have nested messages:
+
+```typescript
+interface DiagnosticMessageChain {
+  messageText: string;
+  category: DiagnosticCategory;
+  code: number;
+  next?: DiagnosticMessageChain[];
+}
+```
+
+### Flattening Message Chains
+
+```typescript Flatten Messages
+function flattenDiagnosticMessageText(
+  diagnostic: ts.Diagnostic
+): string {
+  if (typeof diagnostic.messageText === 'string') {
+    return diagnostic.messageText;
+  }
+  
+  return ts.flattenDiagnosticMessageText(
+    diagnostic.messageText,
+    '\n',
+    0
+  );
+}
+
+// Example chained message:
+// "Type 'X' is not assignable to type 'Y'.
+//   Types of property 'foo' are incompatible.
+//     Type 'A' is not assignable to type 'B'."
+```
+
+## Real-World Integration
+
+```typescript Complete Diagnostic Provider
+import * as ts from 'typescript';
+
+class DiagnosticProvider {
+  constructor(private service: ts.LanguageService) {}
+
+  async getDiagnostics(
+    fileName: string,
+    options?: {
+      includeSyntactic?: boolean;
+      includeSemantic?: boolean;
+      includeSuggestions?: boolean;
+    }
+  ) {
+    const { 
+      includeSyntactic = true,
+      includeSemantic = true,
+      includeSuggestions = false
+    } = options || {};
+
+    const diagnostics: ts.Diagnostic[] = [];
+
+    if (includeSyntactic) {
+      diagnostics.push(
+        ...this.service.getSyntacticDiagnostics(fileName)
+      );
+    }
+
+    if (includeSemantic) {
+      diagnostics.push(
+        ...this.service.getSemanticDiagnostics(fileName)
+      );
+    }
+
+    if (includeSuggestions) {
+      diagnostics.push(
+        ...this.service.getSuggestionDiagnostics(fileName)
+      );
+    }
+
+    return diagnostics.map(d => this.formatDiagnostic(d));
+  }
+
+  private formatDiagnostic(diagnostic: ts.Diagnostic) {
+    const severity = this.getSeverity(diagnostic);
+    const message = this.getMessage(diagnostic);
+    const location = this.getLocation(diagnostic);
+    const codeActions = this.getCodeFixes(diagnostic);
+
+    return {
+      severity,
+      message,
+      code: diagnostic.code,
+      source: diagnostic.source || 'ts',
+      location,
+      codeActions,
+      tags: this.getTags(diagnostic)
+    };
+  }
+
+  private getSeverity(diagnostic: ts.Diagnostic) {
+    switch (diagnostic.category) {
+      case ts.DiagnosticCategory.Error:
+        return 'error';
+      case ts.DiagnosticCategory.Warning:
+        return 'warning';
+      case ts.DiagnosticCategory.Suggestion:
+        return 'information';
+      case ts.DiagnosticCategory.Message:
+        return 'hint';
+    }
+  }
+
+  private getMessage(diagnostic: ts.Diagnostic) {
+    return ts.flattenDiagnosticMessageText(
+      diagnostic.messageText,
+      '\n'
+    );
+  }
+
+  private getLocation(diagnostic: ts.Diagnostic) {
+    if (!diagnostic.file || diagnostic.start === undefined) {
+      return null;
+    }
+
+    const start = diagnostic.file.getLineAndCharacterOfPosition(
+      diagnostic.start
+    );
+    const end = diagnostic.file.getLineAndCharacterOfPosition(
+      diagnostic.start + (diagnostic.length || 0)
+    );
+
+    return {
+      file: diagnostic.file.fileName,
+      range: {
+        start: { line: start.line, character: start.character },
+        end: { line: end.line, character: end.character }
+      }
+    };
+  }
+
+  private getCodeFixes(diagnostic: ts.Diagnostic) {
+    if (!diagnostic.file || diagnostic.start === undefined) {
+      return [];
+    }
+
+    const fixes = this.service.getCodeFixesAtPosition(
+      diagnostic.file.fileName,
+      diagnostic.start,
+      diagnostic.start + (diagnostic.length || 0),
+      [diagnostic.code],
+      {},
+      {}
+    );
+
+    return fixes.map(fix => ({
+      title: fix.description,
+      kind: fix.fixName,
+      edits: this.convertTextChanges(fix.changes)
+    }));
+  }
+
+  private getTags(diagnostic: ts.Diagnostic) {
+    const tags: string[] = [];
+    
+    if (diagnostic.reportsUnnecessary) {
+      tags.push('unnecessary');
+    }
+    
+    if (diagnostic.reportsDeprecated) {
+      tags.push('deprecated');
+    }
+    
+    return tags;
+  }
+
+  private convertTextChanges(changes: readonly ts.FileTextChanges[]) {
+    return changes.map(change => ({
+      file: change.fileName,
+      edits: change.textChanges.map(tc => ({
+        range: {
+          start: tc.span.start,
+          end: tc.span.start + tc.span.length
+        },
+        newText: tc.newText
+      }))
+    }));
+  }
+}
+
+// Usage
+const provider = new DiagnosticProvider(service);
+
+// Get all diagnostics
+const diagnostics = await provider.getDiagnostics('app.ts', {
+  includeSyntactic: true,
+  includeSemantic: true,
+  includeSuggestions: true
+});
+
+diagnostics.forEach(diagnostic => {
+  console.log(`[${diagnostic.severity}] ${diagnostic.message}`);
+  if (diagnostic.location) {
+    console.log(`  at ${diagnostic.location.file}:${diagnostic.location.range.start.line + 1}`);
+  }
+  if (diagnostic.codeActions.length > 0) {
+    console.log('  Available fixes:');
+    diagnostic.codeActions.forEach(action => {
+      console.log(`    - ${action.title}`);
+    });
+  }
+});
+```
+
+## Performance Tips
+
+<AccordionGroup>
+  <Accordion title="Check Syntax First" icon="bolt">
+    Always call `getSyntacticDiagnostics` before `getSemanticDiagnostics`. Syntax errors are faster to compute and may make semantic checking unnecessary.
+    
+    ```typescript
+    const syntactic = service.getSyntacticDiagnostics('app.ts');
+    if (syntactic.length === 0) {
+      // Only check semantics if syntax is valid
+      const semantic = service.getSemanticDiagnostics('app.ts');
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Cache Results" icon="database">
+    Diagnostic results are cached by the Language Service. Don't recompute unless the file has changed.
+    
+    ```typescript
+    const cache = new Map<string, ts.Diagnostic[]>();
+    
+    function getDiagnosticsWithCache(fileName: string, version: string) {
+      const key = `${fileName}:${version}`;
+      if (cache.has(key)) {
+        return cache.get(key)!;
+      }
+      
+      const diagnostics = service.getSemanticDiagnostics(fileName);
+      cache.set(key, diagnostics);
+      return diagnostics;
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Incremental Checking" icon="arrows-rotate">
+    Only check changed files, not the entire project:
+    
+    ```typescript
+    const changedFiles = getChangedFilesSinceLastCheck();
+    
+    for (const fileName of changedFiles) {
+      const diagnostics = [
+        ...service.getSyntacticDiagnostics(fileName),
+        ...service.getSemanticDiagnostics(fileName)
+      ];
+      updateDiagnosticsForFile(fileName, diagnostics);
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Debounce in Editors" icon="clock">
+    Don't check on every keystroke. Debounce diagnostic requests:
+    
+    ```typescript
+    let diagnosticTimer: NodeJS.Timeout;
+    
+    function scheduleCheck(fileName: string) {
+      clearTimeout(diagnosticTimer);
+      diagnosticTimer = setTimeout(() => {
+        const diagnostics = getDiagnostics(fileName);
+        showDiagnostics(diagnostics);
+      }, 500); // Wait 500ms after last change
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Language Service API" icon="code" href="./language-service">
+    Main Language Service reference
+  </Card>
+  <Card title="Completions" icon="sparkles" href="./completions">
+    Code completion API
+  </Card>
+  <Card title="Program API" icon="folder-tree" href="./program">
+    Program and compilation
+  </Card>
+  <Card title="Type Checker" icon="check" href="./type-checker">
+    Type system internals
+  </Card>
+</CardGroup>

@@ -1,0 +1,425 @@
+---
+title: 'tsconfig.json'
+description: 'Complete guide to TypeScript configuration files'
+---
+
+## Overview
+
+The `tsconfig.json` file is the configuration file for TypeScript projects. It specifies the root files and compiler options required to compile your project.
+
+<Info>
+The presence of a `tsconfig.json` file in a directory indicates that the directory is the root of a TypeScript project.
+</Info>
+
+## Basic Structure
+
+A `tsconfig.json` file has the following top-level properties:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "NodeNext",
+    "strict": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "**/*.spec.ts"],
+  "files": ["src/main.ts"],
+  "extends": "./tsconfig-base.json",
+  "references": [
+    { "path": "../compiler" }
+  ]
+}
+```
+
+## Configuration Properties
+
+### compilerOptions
+
+The `compilerOptions` property is the most important part of your configuration. It specifies the compiler settings for your project.
+
+<CodeGroup>
+```json Basic Setup
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "NodeNext",
+    "lib": ["es2020"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true
+  }
+}
+```
+
+```json TypeScript Codebase Example
+{
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../built/local",
+    "pretty": true,
+    "lib": ["es2020"],
+    "target": "es2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "strict": true,
+    "skipLibCheck": true
+  }
+}
+```
+</CodeGroup>
+
+See the [Compiler Options Reference](/config/compiler-options-reference) for a complete list of all available compiler options.
+
+### include
+
+Specifies an array of filenames or patterns to include in the program. These filenames are resolved relative to the directory containing the `tsconfig.json` file.
+
+```json
+{
+  "include": [
+    "src/**/*",
+    "tests/**/*"
+  ]
+}
+```
+
+<Note>
+The patterns work like `.gitignore`: `**` matches any directory nested to any level, `*` matches zero or more characters, and `?` matches any one character.
+</Note>
+
+### exclude
+
+Specifies an array of filenames or patterns that should be skipped when resolving `include`.
+
+```json
+{
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts",
+    "dist"
+  ]
+}
+```
+
+<Warning>
+`exclude` only affects files included via the `include` property. Files specified via the `files` property are always included.
+</Warning>
+
+**Default excludes:**
+- `node_modules`
+- `bower_components`
+- `jspm_packages`
+- `outDir` (if specified)
+
+### files
+
+Specifies an allowlist of files to include in the program. An error occurs if any of the files can't be found.
+
+```json
+{
+  "files": [
+    "src/main.ts",
+    "src/types.ts"
+  ]
+}
+```
+
+This is useful when you only have a small number of files and don't need a glob pattern.
+
+### extends
+
+Inherits configuration from another file. The value can be a relative or absolute path.
+
+<CodeGroup>
+```json tsconfig.json
+{
+  "extends": "./tsconfig-base.json",
+  "compilerOptions": {
+    "outDir": "./dist"
+  }
+}
+```
+
+```json tsconfig-base.json
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "es2020",
+    "module": "NodeNext"
+  }
+}
+```
+</CodeGroup>
+
+**Configuration resolution:**
+1. Load base file configuration
+2. Override with properties from the extending file
+3. All relative paths in the inherited config are resolved relative to the config file they originated from
+
+<Tip>
+You can also extend from npm packages: `"extends": "@tsconfig/node18/tsconfig.json"`
+</Tip>
+
+### references
+
+Project references enable TypeScript projects to be structured as independent units. See [Project References](/config/project-references) for detailed information.
+
+```json
+{
+  "references": [
+    { "path": "../shared" },
+    { "path": "../compiler" }
+  ]
+}
+```
+
+## Real-World Examples
+
+### Node.js Application
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["es2020"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+### Browser Application with React
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2020", "dom", "dom.iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}
+```
+
+### TypeScript Compiler (from source)
+
+This example is from the TypeScript compiler's own `tsconfig-base.json`:
+
+```json src/tsconfig-base.json
+{
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../built/local",
+    "pretty": true,
+    "lib": ["es2020"],
+    "target": "es2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "isolatedDeclarations": true,
+    "strict": true,
+    "strictBindCallApply": false,
+    "useUnknownInCatchVariables": false,
+    "noImplicitOverride": true,
+    "skipLibCheck": true,
+    "alwaysStrict": true,
+    "preserveConstEnums": true,
+    "newLine": "lf",
+    "types": []
+  }
+}
+```
+
+### Library with Declaration Files
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "es2018",
+    "module": "esnext",
+    "lib": ["es2018"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "removeComments": false,
+    "preserveConstEnums": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+}
+```
+
+## Watch Options
+
+Configure how the watch mode works:
+
+```json
+{
+  "watchOptions": {
+    "watchFile": "useFsEvents",
+    "watchDirectory": "useFsEvents",
+    "fallbackPolling": "dynamicPriority",
+    "synchronousWatchDirectory": false,
+    "excludeDirectories": ["**/node_modules", "dist"],
+    "excludeFiles": ["**/*.test.ts"]
+  }
+}
+```
+
+### Watch File Strategies
+
+From `src/compiler/commandLineParser.ts:288-302`:
+
+- `fixedPollingInterval` - Check every file at fixed interval
+- `priorityPollingInterval` - Check files at different intervals based on heuristics
+- `dynamicPriorityPolling` - Use dynamic queue that updates less frequently modified files
+- `fixedChunkSizePolling` - Check files in chunks
+- `useFsEvents` - Use file system events (default)
+- `useFsEventsOnParentDirectory` - Use file system events on parent directories
+
+## Type Acquisition
+
+Configure automatic type acquisition for JavaScript projects:
+
+```json
+{
+  "typeAcquisition": {
+    "enable": true,
+    "include": ["jquery"],
+    "exclude": ["jest"]
+  }
+}
+```
+
+From `src/compiler/commandLineParser.ts:1795-1822`:
+
+- `enable` - Enable automatic type acquisition
+- `include` - Type declaration packages to include
+- `exclude` - Type declaration packages to exclude
+- `disableFilenameBasedTypeAcquisition` - Disable inferring types from filenames
+
+## Initializing a tsconfig.json
+
+Use the TypeScript compiler to create a new `tsconfig.json` file:
+
+```bash
+tsc --init
+```
+
+This creates a `tsconfig.json` file with default compiler options and helpful comments.
+
+<Tip>
+For specific environments, use community configs:
+- `npm install --save-dev @tsconfig/node18`
+- `npm install --save-dev @tsconfig/react-native`
+- Then extend: `"extends": "@tsconfig/node18/tsconfig.json"`
+</Tip>
+
+## Schema Validation
+
+The `tsconfig.json` file supports JSON schema validation in most modern editors:
+
+```json
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    // Your options with autocomplete
+  }
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+<Card title="Use strict mode" icon="shield-check">
+Always enable `"strict": true` for new projects to catch more errors at compile time.
+</Card>
+
+<Card title="Enable source maps" icon="map">
+Use `"sourceMap": true` for better debugging experience.
+</Card>
+
+<Card title="Skip lib checks" icon="forward">
+Use `"skipLibCheck": true` to speed up compilation by skipping type checking of declaration files.
+</Card>
+
+<Card title="Use project references" icon="diagram-project">
+For large projects, use project references to improve build times and enforce module boundaries.
+</Card>
+</CardGroup>
+
+## Common Patterns
+
+### Multiple tsconfig files
+
+Many projects use multiple configuration files:
+
+```plaintext
+├── tsconfig.json          # Base configuration
+├── tsconfig.build.json    # Production build
+├── tsconfig.test.json     # Test configuration
+└── src/
+    └── tsconfig.json      # Source-specific config
+```
+
+### Monorepo setup
+
+```json tsconfig.json (root)
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/client" },
+    { "path": "./packages/server" }
+  ]
+}
+```
+
+## Related Documentation
+
+<CardGroup cols={2}>
+<Card title="Compiler Options Reference" icon="list" href="/config/compiler-options-reference">
+Complete list of all compiler options with types and defaults
+</Card>
+
+<Card title="Project References" icon="link" href="/config/project-references">
+Learn how to structure large TypeScript projects
+</Card>
+</CardGroup>

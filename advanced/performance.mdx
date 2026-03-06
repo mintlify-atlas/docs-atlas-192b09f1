@@ -1,0 +1,413 @@
+---
+title: 'Performance Optimization'
+description: 'Advanced techniques for improving TypeScript compilation performance'
+---
+
+# Performance Optimization
+
+TypeScript offers several advanced features and compiler options designed to optimize compilation performance, especially for large projects. Understanding these options can significantly reduce build times.
+
+## Incremental Compilation
+
+Incremental compilation allows TypeScript to save information about the project graph from the last compilation to speed up subsequent builds.
+
+### Enabling Incremental Mode
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": "./.tsbuildinfo"
+  }
+}
+```
+
+<Info>
+  The `incremental` flag is automatically enabled when `composite` is set to `true`.
+</Info>
+
+### How It Works
+
+When incremental compilation is enabled, TypeScript:
+
+1. Saves a `.tsbuildinfo` file containing information about the project structure
+2. Tracks which files have changed since the last compilation
+3. Only recompiles affected files and their dependents
+4. Reuses type information from unchanged files
+
+The `.tsbuildinfo` file stores:
+- File hashes and timestamps
+- Program structure information
+- Semantic diagnostics
+- Emit signatures
+
+### Customizing the Build Info File
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": "./build/.tsbuildinfo"
+  }
+}
+```
+
+<Warning>
+  Add `.tsbuildinfo` to your `.gitignore` file - these files are build artifacts and should not be committed.
+</Warning>
+
+## Project References
+
+Project references enable TypeScript to work with multiple interconnected projects efficiently, allowing for faster builds and better code organization.
+
+### Setting Up Project References
+
+**Root Project:**
+```json tsconfig.json
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/utils" },
+    { "path": "./packages/app" }
+  ]
+}
+```
+
+**Referenced Project:**
+```json packages/core/tsconfig.json
+{
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*"]
+}
+```
+
+### The `composite` Option
+
+The `composite` option enables constraints that allow a TypeScript project to be used with project references:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "rootDir": "./src",
+    "outDir": "./dist"
+  }
+}
+```
+
+<Note>
+  Composite projects automatically enable `incremental` and require `declaration` to be true.
+</Note>
+
+### Benefits of Project References
+
+<CardGroup cols={2}>
+  <Card title="Faster Builds" icon="rocket">
+    Only rebuild changed projects and their dependents
+  </Card>
+  <Card title="Better Structure" icon="folder-tree">
+    Enforce logical separation between project components
+  </Card>
+  <Card title="Editor Performance" icon="gauge-high">
+    Improved IDE responsiveness in large codebases
+  </Card>
+  <Card title="Parallel Builds" icon="layer-group">
+    Independent projects can be built concurrently
+  </Card>
+</CardGroup>
+
+### Building with Project References
+
+```bash
+# Build the entire project graph
+tsc --build
+
+# Clean build outputs
+tsc --build --clean
+
+# Force rebuild all projects
+tsc --build --force
+
+# Watch mode with project references
+tsc --build --watch
+```
+
+## Watch Mode Optimizations
+
+Watch mode monitors source files and recompiles when changes are detected. TypeScript includes several optimizations to make watch mode efficient.
+
+### Basic Watch Configuration
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "incremental": true
+  },
+  "watchOptions": {
+    "watchFile": "useFsEvents",
+    "watchDirectory": "useFsEvents",
+    "fallbackPolling": "dynamicPriority",
+    "synchronousWatchDirectory": true,
+    "excludeDirectories": ["**/node_modules", "_build"],
+    "excludeFiles": ["build/fileWhichChangesOften.ts"]
+  }
+}
+```
+
+### Watch Strategy Options
+
+<Accordion title="watchFile Strategies">
+  - **`useFsEvents`**: Use the operating system's file watching mechanism (recommended)
+  - **`useFsEventsOnParentDirectory`**: Watch parent directories to reduce file watchers
+  - **`dynamicPriorityPolling`**: Less frequent polling for less frequently changed files
+  - **`fixedPollingInterval`**: Check files at fixed intervals
+  - **`priorityPollingInterval`**: Use heuristics to check files at different intervals
+</Accordion>
+
+<Accordion title="watchDirectory Strategies">
+  - **`useFsEvents`**: Use OS native directory watching (default on most systems)
+  - **`dynamicPriorityPolling`**: Dynamic polling based on directory change frequency
+  - **`fixedPollingInterval`**: Fixed interval polling for all directories
+</Accordion>
+
+### Watch Mode Performance Tips
+
+```json tsconfig.json
+{
+  "watchOptions": {
+    // Exclude large directories that don't need watching
+    "excludeDirectories": [
+      "**/node_modules",
+      "**/.git",
+      "**/dist",
+      "**/build"
+    ],
+    
+    // Exclude specific files that change frequently but don't need recompilation
+    "excludeFiles": [
+      "**/temp/**",
+      "**/*.log"
+    ]
+  }
+}
+```
+
+<Tip>
+  Use `preserveWatchOutput: true` to keep previous console output visible when files change.
+</Tip>
+
+## Performance Compiler Options
+
+### skipLibCheck
+
+Skip type checking of declaration files (`.d.ts`) to significantly improve compilation speed:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "skipLibCheck": true
+  }
+}
+```
+
+<Note>
+  This is one of the most impactful performance optimizations. It's enabled by default in many starter configurations.
+</Note>
+
+**When to use:**
+- Large projects with many dependencies
+- When you trust the type definitions in `node_modules`
+- To reduce initial compilation time
+
+**Trade-offs:**
+- May miss type errors in third-party declarations
+- Errors in `.d.ts` files won't be reported
+
+### assumeChangesOnlyAffectDirectDependencies
+
+In watch and incremental mode, assume changes only affect files that directly import the changed file:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "incremental": true,
+    "assumeChangesOnlyAffectDirectDependencies": true
+  }
+}
+```
+
+<Warning>
+  This can lead to incomplete type checking in some scenarios. Use with caution.
+</Warning>
+
+### disableSourceOfProjectReferenceRedirect
+
+When referencing composite projects, use declaration files instead of source files:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "disableSourceOfProjectReferenceRedirect": true
+  }
+}
+```
+
+This can improve performance when:
+- Working in large monorepos
+- Referenced projects are stable
+- You don't need to navigate to source in referenced projects
+
+### Other Performance-Related Options
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    // Skip checking files that are definitely unaffected
+    "skipDefaultLibCheck": true,
+    
+    // Disable size/performance optimizations for faster builds
+    "preserveConstEnums": false,
+    
+    // Faster emit by not checking that files can be transpiled in isolation
+    "isolatedModules": true,
+    
+    // Faster for large projects with many files
+    "moduleDetection": "force"
+  }
+}
+```
+
+## Measuring Performance
+
+TypeScript provides built-in tools to measure compilation performance.
+
+### Using --diagnostics
+
+```bash
+tsc --diagnostics
+```
+
+Output:
+```
+Files:            250
+Lines:            50000
+Nodes:            180000
+Identifiers:      65000
+Symbols:          45000
+Types:            15000
+Memory used:      150000K
+I/O read:         0.50s
+I/O write:        0.10s
+Parse time:       1.20s
+Bind time:        0.80s
+Check time:       3.50s
+Emit time:        0.90s
+Total time:       6.40s
+```
+
+### Using --extendedDiagnostics
+
+```bash
+tsc --extendedDiagnostics
+```
+
+Provides detailed breakdown of:
+- Time spent in each compilation phase
+- Memory usage per phase
+- File I/O statistics
+- Type checking time per file
+
+### Performance Trace
+
+Generate a detailed performance trace:
+
+```bash
+tsc --generateTrace ./trace
+```
+
+This creates trace files that can be analyzed with:
+- Chrome DevTools Performance tab
+- [analyze-trace](https://github.com/microsoft/typescript-analyze-trace)
+
+<CodeGroup>
+```bash Analyzing Trace
+cd trace
+python -m http.server 8080
+# Open chrome://tracing and load trace.json
+```
+
+```bash Using analyze-trace
+npx analyze-trace ./trace
+```
+</CodeGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Enable incremental compilation">
+    Use `"incremental": true` for all projects
+  </Step>
+  
+  <Step title="Use project references for monorepos">
+    Split large codebases into composite projects
+  </Step>
+  
+  <Step title="Enable skipLibCheck">
+    Skip type checking of declaration files
+  </Step>
+  
+  <Step title="Configure watch options">
+    Exclude unnecessary directories from file watching
+  </Step>
+  
+  <Step title="Measure and optimize">
+    Use `--diagnostics` to identify bottlenecks
+  </Step>
+</Steps>
+
+## Common Performance Issues
+
+<AccordionGroup>
+  <Accordion title="Slow initial compilation">
+    - Enable `skipLibCheck`
+    - Use `types` to include only needed `@types` packages
+    - Consider splitting into project references
+  </Accordion>
+  
+  <Accordion title="Slow incremental builds">
+    - Check if `.tsbuildinfo` is being preserved
+    - Verify watch mode exclusions are set correctly
+    - Consider `assumeChangesOnlyAffectDirectDependencies`
+  </Accordion>
+  
+  <Accordion title="High memory usage">
+    - Split project using project references
+    - Enable `isolatedModules` if using a bundler
+    - Check for circular dependencies
+  </Accordion>
+  
+  <Accordion title="Slow IDE/editor experience">
+    - Use project references to scope type checking
+    - Enable `disableSourceOfProjectReferenceRedirect`
+    - Consider workspace-level `excludes`
+  </Accordion>
+</AccordionGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Compiler Options" icon="file-code" href="/config/compiler-options-reference">
+    Complete compiler options reference
+  </Card>
+  <Card title="Project References" icon="gear" href="/config/project-references">
+    Multi-project setup and configuration
+  </Card>
+</CardGroup>
